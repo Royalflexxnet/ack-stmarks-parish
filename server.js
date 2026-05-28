@@ -20,6 +20,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname)));
 app.use('/portal', express.static(path.join(__dirname, 'portal')));
 
+// FIX: Explicit route for root homepage
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
