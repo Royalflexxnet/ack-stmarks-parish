@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — ACK St. Mark's Parish</title>
+  <link rel="stylesheet" href="portal.css">
+  <style>
+    .admin-header { background: var(--primary); }
+    .admin-header .brand .cross { color: var(--accent); }
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+      position: sticky;
+      top: 60px;
+      z-index: 99;
+    }
+    .tab-bar button {
+      padding: 0.9rem 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9rem;
+      color: var(--text-light);
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: 0.2s;
+    }
+    .tab-bar button:hover, .tab-bar button.active { color: var(--primary); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .empty-state { color: var(--text-light); padding: 2rem 0; text-align: center; }
+    .member-row { cursor: pointer; }
+    .member-row:hover td { background: #f0f0f0; }
+    .badge-active { background: #d4edda; color: #155724; padding: 0.2rem 0.6rem; border-radius: 50px; font-size: 0.8rem; font-weight: 600; }
+    .badge-inactive { background: #fde8e8; color: #dc3545; padding: 0.2rem 0.6rem; border-radius: 50px; font-size: 0.8rem; font-weight: 600; }
+    .stat-chip { display:inline-block; background:#e8f0fe; color:#1a73e8; padding:0.4rem 0.8rem; border-radius:50px; font-size:0.85rem; font-weight:500; }
+    .actions-cell { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .actions-cell .btn { padding: 0.3rem 0.7rem; font-size: 0.75rem; white-space: nowrap; }
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      z-index: 200; align-items: center; justify-content: center; padding: 2rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card); border-radius: var(--radius); padding: 2rem;
+      width: 100%; max-width: 650px; max-height: 85vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal h2 { margin-bottom: 1rem; }
+    .modal-actions { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .btn-secondary { background: var(--bg-alt); color: var(--text); }
+    .btn-secondary:hover { background: #ddd; }
+    .perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.5rem 0; }
+    .perm-grid label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; }
+    .perm-grid input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    .role-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+    .role-superadmin { background: #8b0000; color: white; }
+    .role-vicar { background: #1a2744; color: white; }
+    .role-treasurer { background: #2e7d32; color: white; }
+    .role-secretary { background: #1565c0; color: white; }
+    .role-vice_chairman { background: #6a1b9a; color: white; }
+    .role-peoples_warden { background: #1565c0; color: white; }
+    .role-vicars_warden { background: #6a1b9a; color: white; }
+    .role-sunday_school_leader { background: #2e7d32; color: white; }
+    .role-fellowship_leader { background: #e65100; color: white; }
+    .role-admin { background: #546e7a; color: white; }
+    .fellowship-tag { font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+    @media (max-width: 768px) {
+      .modal { padding: 1.5rem; }
+      .tab-bar button { font-size: 0.8rem; padding: 0.7rem 1rem; }
+      .perm-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="portal-header admin-header">
+    <div class="brand"><img src="../img/ACK%20MACHAKOS%20LOGO.png" alt="ACK Logo" style="height:30px;width:auto"> <a href="/" style="color:inherit;text-decoration:none">ACK St. Mark's Parish</a> <span style="opacity:0.5;font-size:0.8rem">| Admin</span></div>
+    <div class="user-info">
+      <span id="displayName"></span>
+      <span id="displayRole" style="font-size:0.75rem;background:rgba(255,255,255,0.15);padding:0.2rem 0.6rem;border-radius:4px"></span>
+      <button class="btn btn-sm btn-secondary" onclick="openAdminPasswordModal()" style="padding:0.3rem 0.6rem;font-size:0.8rem;background:transparent;border:1px solid var(--text-light);color:var(--text-light);border-radius:4px;cursor:pointer">&#128274; Password</button>
+      <button class="logout-btn" onclick="adminLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tabBar">
+    <button class="active" onclick="switchTab('overview')">Overview</button>
+    <button onclick="switchTab('members')">Members</button>
+    <button id="tabContribBtn" onclick="switchTab('contributions')">Contributions</button>
+    <button onclick="switchTab('announcements')">Announcements</button>
+    <button id="tabEventsBtn" onclick="switchTab('events')" style="display:none">Events</button>
+    <button id="tabAdminsBtn" onclick="switchTab('admins')" style="display:none">Admins</button>
+    <button id="tabFinanceUsersBtn" onclick="switchTab('financeusers')" style="display:none">Finance Users</button>
+    <button id="tabChangeRequestsBtn" onclick="switchTab('changerequests')" style="display:none">Change Requests</button>
+    <button id="tabPageEditorBtn" onclick="switchTab('pageeditor')" style="display:none">Page Editor</button>
+    <a href="/" style="margin-left:auto;padding:0.9rem 1.5rem;text-decoration:none;font-weight:500;font-size:0.9rem;color:var(--accent);white-space:nowrap">&#8592; Site Home</a>
+    <a href="finance-dashboard" style="padding:0.9rem 1.5rem;text-decoration:none;font-weight:500;font-size:0.9rem;color:var(--text-light);white-space:nowrap">Finance</a>
+  </div>
+
+  <div class="portal-container">
+    <div id="alert"></div>
+
+    <div id="tab-overview" class="tab-content active">
+      <div class="stats-grid" id="overviewStats">
+        <div class="stat-card"><div class="stat-value" id="statMembers">—</div><div class="stat-label">Total Members</div></div>
+        <div class="stat-card"><div class="stat-value" id="statActive">—</div><div class="stat-label">Active Members</div></div>
+        <div class="stat-card" id="statContribsCard"><div class="stat-value" id="statContribs">—</div><div class="stat-label">Contributions</div></div>
+        <div class="stat-card" id="statTotalAmtCard"><div class="stat-value" id="statTotalAmt">—</div><div class="stat-label">Total Amount (KES)</div></div>
+      </div>
+      <div id="fellowshipNotice" style="display:none;margin-bottom:1rem;padding:0.8rem 1.2rem;background:#fff3cd;border-radius:8px;color:#856404;font-size:0.9rem"></div>
+
+      <div class="card">
+        <h2>Members by Department</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:0.75rem" id="deptStats"><p class="empty-state">—</p></div>
+      </div>
+      <div class="card">
+        <h2>Members by Fellowship</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:0.75rem" id="fellowshipStats"><p class="empty-state">—</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Recent Members</h2>
+        <div id="recentMembers"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="tab-members" class="tab-content">
+      <div class="card">
+        <h2>All Members</h2>
+        <button class="btn btn-primary" onclick="openCreateMemberModal()" style="margin-bottom:1rem">+ Create Member</button>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+          <div class="form-group" style="margin-bottom:0;flex:1;min-width:200px;display:flex;gap:0.5rem">
+            <input type="text" id="memberSearch" placeholder="Search name, phone, or membership no..." oninput="filterMembers()" style="flex:1">
+            <button class="btn btn-primary btn-sm" onclick="filterMembers()">Search</button>
+          </div>
+          <div class="form-group" style="margin-bottom:0;min-width:150px">
+            <select id="filterStatus" onchange="filterMembers()">
+              <option value="all">All Members</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </select>
+          </div>
+        </div>
+        <div id="membersList"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="tab-contributions" class="tab-content">
+      <div class="card" id="addContributionCard">
+        <h2>Add Contribution</h2>
+        <form id="contributionForm" style="display:flex;flex-direction:column;gap:0.75rem">
+          <div style="display:flex;gap:0.75rem;align-items:start">
+            <div class="form-group" style="margin-bottom:0;flex:2">
+              <label for="contribMember">Member</label>
+              <input type="text" id="contribMember" list="contribMemberList" placeholder="Type name, phone, or membership no..." required autocomplete="off">
+              <datalist id="contribMemberList"></datalist>
+            </div>
+            <div class="form-group" style="margin-bottom:0;flex:1">
+              <label for="contribType">Type</label>
+              <select id="contribType">
+                <option value="Tithe">Tithe</option>
+                <option value="Offering">Offering</option>
+                <option value="Thanksgiving">Thanksgiving</option>
+                <option value="Building Fund">Building Fund</option>
+                <option value="Project">Project</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;flex:1">
+              <label for="contribAmount">Amount (KES)</label>
+              <input type="number" id="contribAmount" placeholder="e.g. 500" min="1" required>
+            </div>
+            <div class="form-group" style="margin-bottom:0;flex:1">
+              <label for="contribDesc">Note</label>
+              <input type="text" id="contribDesc" placeholder="Optional">
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:1.5rem">Add Payment</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>All Contributions</h2>
+        <div id="contributionsList"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="tab-announcements" class="tab-content">
+      <div class="card">
+        <h2>Manage Announcements</h2>
+        <button class="btn btn-primary" onclick="openAnnouncementModal()">+ New Announcement</button>
+        <div style="margin-top:1.5rem" id="announcementsList"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="tab-events" class="tab-content">
+      <div class="card">
+        <h2>Add Event</h2>
+        <form onsubmit="addEvent(event)" class="inline-form" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:end">
+          <div class="form-group" style="margin-bottom:0"><label>Title</label><input type="text" id="evTitle" required></div>
+          <div class="form-group" style="margin-bottom:0"><label>Description</label><input type="text" id="evDesc" required></div>
+          <div class="form-group" style="margin-bottom:0"><label>Location</label><input type="text" id="evLoc"></div>
+          <div class="form-group" style="margin-bottom:0"><label>Date</label><input type="date" id="evDate" required></div>
+          <div class="form-group" style="margin-bottom:0"><label>Time</label><input type="text" id="evTime" placeholder="e.g. 10:00 AM"></div>
+          <button type="submit" class="btn btn-primary">Add Event</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>All Events</h2>
+        <div id="eventsList"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="tab-admins" class="tab-content">
+      <div class="card">
+        <h2>Manage Admin Accounts</h2>
+        <button class="btn btn-primary" onclick="openAdminModal()">+ New Admin</button>
+        <div style="margin-top:1.5rem" id="adminsList"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="tab-financeusers" class="tab-content">
+      <div class="card">
+        <h2>Add Finance User</h2>
+        <form onsubmit="addFinanceUser(event)" class="inline-form" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:end">
+          <div class="form-group" style="margin-bottom:0"><label>Username</label><input type="text" id="afuUsername" required></div>
+          <div class="form-group" style="margin-bottom:0"><label>Full Name</label><input type="text" id="afuFullName" required></div>
+          <div class="form-group" style="margin-bottom:0"><label>Password</label><input type="password" id="afuPassword" required minlength="4"></div>
+          <div class="form-group" style="margin-bottom:0"><label>Role</label>
+            <select id="afuRole"><option value="finance_user">Finance User</option><option value="finance_admin">Finance Admin</option></select>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;width:100%;margin-top:0.5rem">
+            <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="afuPermEntries" checked> Entries</label>
+            <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="afuPermPettyCash" checked> Petty Cash</label>
+            <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="afuPermDevelopment" checked> Development</label>
+            <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="afuPermUsers"> Users</label>
+            <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="afuPermReports" checked> Reports</label>
+            <button type="submit" class="btn btn-primary btn-sm" style="margin-left:auto">Add User</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Finance Users</h2>
+        <div id="financeUsersList"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="tab-changerequests" class="tab-content">
+      <div class="card">
+        <h2>Pending Change Requests</h2>
+        <div id="changeRequestsList"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="tab-pageeditor" class="tab-content">
+      <div class="card">
+        <h2>Page Content Editor</h2>
+        <p style="color:var(--text-light);margin-bottom:1rem">Edit the text content of your public website pages. Changes appear immediately.</p>
+        <div class="form-group">
+          <label for="pageSelect">Select Page</label>
+          <select id="pageSelect" onchange="loadPageContent()">
+            <option value="">Choose a page...</option>
+            <option value="home">Home</option>
+            <option value="about">About</option>
+            <option value="events">Events</option>
+            <option value="contact">Contact</option>
+          </select>
+        </div>
+        <div id="pageEditorFields"><p class="empty-state">Select a page above to edit its content.</p></div>
+        <button id="savePageContentBtn" class="btn btn-primary" onclick="savePageContent()" style="display:none;margin-top:1rem">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Member Modal -->
+  <div class="modal-overlay" id="createMemberModal">
+    <div class="modal">
+      <h2>Create Member</h2>
+      <form id="createMemberForm">
+        <div class="form-group"><label for="cm_full_name">Full Name *</label><input type="text" id="cm_full_name" required></div>
+        <div class="form-row">
+          <div class="form-group"><label for="cm_gender">Gender *</label>
+            <select id="cm_gender" required><option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option></select>
+          </div>
+          <div class="form-group"><label for="cm_phone">Phone *</label><input type="tel" id="cm_phone" required></div>
+        </div>
+        <div class="form-group"><label for="cm_password">Set Password *</label><input type="text" id="cm_password" required placeholder="Enter a password for this member"></div>
+        <div class="form-group"><label for="cm_marital_status">Marital Status</label>
+          <select id="cm_marital_status"><option value="">Select...</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option></select>
+        </div>
+        <div id="cm_spouseFields" style="display:none">
+          <div class="form-row">
+            <div class="form-group"><label for="cm_spouse_name">Spouse Name</label><input type="text" id="cm_spouse_name"></div>
+            <div class="form-group"><label for="cm_spouse_phone">Spouse Contact</label><input type="tel" id="cm_spouse_phone"></div>
+          </div>
+        </div>
+        <div class="form-group"><label>Children</label>
+          <div id="cm_childrenContainer"></div>
+          <button type="button" onclick="addCmChildField()" style="background:none;border:2px dashed var(--bg-alt);border-radius:8px;padding:0.5rem;width:100%;cursor:pointer;color:var(--text-light);font-size:0.85rem">+ Add Child</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="cm_fellowship">Fellowship</label>
+            <select id="cm_fellowship"><option value="">Select...</option><option value="Nazareth">Nazareth</option><option value="Jerusalem">Jerusalem</option><option value="Judea">Judea</option><option value="Vicar's Care">Vicar's Care</option></select>
+          </div>
+          <div class="form-group"><label for="cm_department">Department</label>
+            <select id="cm_department"><option value="">Select...</option></select>
+          </div>
+        </div>
+        <div style="background:var(--bg-alt);border:2px solid var(--accent);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+          <div style="font-weight:700;font-size:0.95rem;margin-bottom:0.5rem;color:var(--primary)">&#128722; Registration Fees</div>
+          <div id="cm_cartItems">
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:0.2rem 0"><span>Member (adult)</span><span>KES 200</span></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-weight:700;border-top:2px solid var(--accent);margin-top:0.3rem;padding-top:0.4rem;font-size:1rem;color:var(--primary)">
+            <span>Total</span>
+            <span id="cm_cartTotal">KES 200</span>
+          </div>
+        </div>
+        <div id="cm_mpesaSection">
+          <div class="mpesa-info" style="background:#f0f8f0;border:1px solid #28a745;border-radius:8px;padding:0.8rem;margin-bottom:0.8rem;font-size:0.85rem">
+            <strong>&#128179; MPesa Payment Required</strong><br>
+            The member must pay the total amount above to MPesa <strong>Paybill: 247247</strong> Account: <strong>STMARKS-REG</strong><br>
+            Enter the confirmation code below to complete registration.
+          </div>
+          <div class="form-group">
+            <label for="cm_mpesa_code">MPesa Confirmation Code *</label>
+            <input type="text" id="cm_mpesa_code" required placeholder="e.g. QLK1ABCDEF">
+          </div>
+        </div>
+        <div class="modal-actions"><button type="submit" class="btn btn-primary">Create Member</button><button type="button" class="btn btn-secondary" onclick="closeModal('createMemberModal')">Cancel</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Member Detail Modal -->
+  <div class="modal-overlay" id="memberModal">
+    <div class="modal">
+      <h2 id="memberModalTitle">Member Details</h2>
+      <div id="memberDetailContent"></div>
+      <div class="modal-actions" id="memberModalActions"></div>
+    </div>
+  </div>
+
+  <!-- Announcement Modal -->
+  <div class="modal-overlay" id="announcementModal">
+    <div class="modal">
+      <h2 id="annModalTitle">New Announcement</h2>
+      <form id="announcementForm">
+        <div class="form-group"><label for="ann_title">Title</label><input type="text" id="ann_title" required></div>
+        <div class="form-group"><label for="ann_body">Body</label><textarea id="ann_body" rows="4" required></textarea></div>
+        <div class="form-group"><label for="ann_department">Department (optional)</label><input type="text" id="ann_department" placeholder="Leave blank for general"></div>
+        <div class="modal-actions"><button type="submit" class="btn btn-primary">Save</button><button type="button" class="btn btn-secondary" onclick="closeModal('announcementModal')">Cancel</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Modal -->
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal">
+      <h2 id="adminModalTitle">New Admin</h2>
+      <form id="adminForm">
+        <div class="form-group"><label for="adm_username">Username</label><input type="text" id="adm_username" required></div>
+          <div class="form-group"><label for="adm_password">Password</label><input type="password" id="adm_password"></div>
+        <div class="form-group"><label for="adm_full_name">Full Name</label><input type="text" id="adm_full_name" required></div>
+        <div class="form-group">
+          <label for="adm_role">Role</label>
+          <select id="adm_role" onchange="onAdminRoleChange()">
+            <option value="">Custom permissions...</option>
+          </select>
+        </div>
+        <div class="form-group" id="adm_fellowship_group" style="display:none">
+          <label for="adm_fellowship">Target Fellowship</label>
+          <select id="adm_fellowship"></select>
+        </div>
+        <div class="form-group">
+          <label>Permissions</label>
+          <div class="perm-grid">
+            <label><input type="checkbox" id="perm_members"> Manage Members</label>
+            <label><input type="checkbox" id="perm_contributions"> Manage Contributions</label>
+            <label><input type="checkbox" id="perm_announcements"> Manage Announcements</label>
+            <label><input type="checkbox" id="perm_admins"> Manage Admins</label>
+          </div>
+        </div>
+        <div class="modal-actions"><button type="submit" class="btn btn-primary">Save</button><button type="button" class="btn btn-secondary" onclick="closeModal('adminModal')">Cancel</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Password Change Modal -->
+  <div class="overlay" id="adminPasswordModal" onclick="closeModal('adminPasswordModal')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Change Admin Password</h2>
+        <button class="close-btn" onclick="closeModal('adminPasswordModal')">&times;</button>
+      </div>
+      <form onsubmit="changeAdminPassword(event)">
+        <div class="form-group">
+          <label>Current Password</label>
+          <input type="password" id="adminCurrentPassword" required>
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="adminNewPassword" required minlength="4">
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" id="adminConfirmPassword" required minlength="4">
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Change Password</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('adminPasswordModal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const adminData = (() => {
+      try { return JSON.parse(localStorage.getItem('admin_info')); } catch { return null; }
+    })();
+
+    function getToken() { return localStorage.getItem('admin_token'); }
+    function requireAdminAuth() { if (!getToken()) window.location.href = '/portal/admin-login'; }
+    function adminLogout() { localStorage.removeItem('admin_token'); localStorage.removeItem('admin_info'); window.location.href = '/portal/admin-login'; }
+
+    async function apiFetch(path, options = {}) {
+      const token = getToken();
+      const headers = { ...options.headers };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch('/api/admin' + path, { ...options, headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    function showAlert(msg, type = 'error') {
+      const el = document.getElementById('alert');
+      if (el) el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    }
+    function clearAlert() { const el = document.getElementById('alert'); if (el) el.innerHTML = ''; }
+    function formatDate(d) { return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); }
+    function formatCurrency(n) { return parseFloat(n).toLocaleString('en-US', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }); }
+    function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      document.querySelector(`.tab-bar button[onclick*="'${name}'"]`).classList.add('active');
+      if (name === 'contributions') populateContribMemberList();
+      if (name === 'financeusers') loadFinanceUsers();
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    function openAdminPasswordModal() {
+      document.getElementById('adminCurrentPassword').value = '';
+      document.getElementById('adminNewPassword').value = '';
+      document.getElementById('adminConfirmPassword').value = '';
+      document.getElementById('adminPasswordModal').classList.add('open');
+    }
+
+    async function changeAdminPassword(e) {
+      e.preventDefault();
+      const current = document.getElementById('adminCurrentPassword').value;
+      const newPass = document.getElementById('adminNewPassword').value;
+      const confirm = document.getElementById('adminConfirmPassword').value;
+      if (newPass !== confirm) { showAlert('New passwords do not match'); return; }
+      try {
+        await apiFetch('/password', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current_password: current, new_password: newPass }) });
+        showAlert('Password changed successfully', 'success');
+        closeModal('adminPasswordModal');
+      } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Create Member ───
+    const CM_PRICES = { adult: 200, spouse: 200, child_below_18: 50, child_18_above: 100 };
+
+    function cmCalcCart() {
+      let items = [{ label: 'Member (adult)', amount: CM_PRICES.adult }];
+      let total = CM_PRICES.adult;
+      const marital = document.getElementById('cm_marital_status').value;
+      if (marital === 'Married') {
+        items.push({ label: 'Spouse', amount: CM_PRICES.spouse });
+        total += CM_PRICES.spouse;
+      }
+      document.querySelectorAll('#cm_childrenContainer .cm-child-age').forEach(inp => {
+        const val = inp.value.trim();
+        if (!val) return;
+        const age = parseInt(val);
+        if (isNaN(age)) return;
+        const amt = age < 18 ? CM_PRICES.child_below_18 : CM_PRICES.child_18_above;
+        items.push({ label: `Child (${val} yrs)`, amount: amt });
+        total += amt;
+      });
+      const p = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
+      document.getElementById('cm_cartItems').innerHTML = items.map(i =>
+        `<div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:0.2rem 0"><span>${i.label}</span><span>KES ${p(i.amount)}</span></div>`
+      ).join('');
+      document.getElementById('cm_cartTotal').textContent = 'KES ' + p(total);
+      return total;
+    }
+
+    function openCreateMemberModal() {
+      document.getElementById('cm_full_name').value = '';
+      document.getElementById('cm_gender').value = '';
+      document.getElementById('cm_phone').value = '';
+      document.getElementById('cm_password').value = '';
+      document.getElementById('cm_marital_status').value = '';
+      document.getElementById('cm_spouse_name').value = '';
+      document.getElementById('cm_spouse_phone').value = '';
+      document.getElementById('cm_spouseFields').style.display = 'none';
+      document.getElementById('cm_childrenContainer').innerHTML = '';
+      document.getElementById('cm_fellowship').value = '';
+      document.getElementById('cm_mpesa_code').value = '';
+      document.getElementById('cm_department').innerHTML = '<option value="">Select...</option>';
+      fetch('/api/departments').then(r => r.json()).then(data => {
+        const sel = document.getElementById('cm_department');
+        data.forEach(d => { const o = document.createElement('option'); o.value = d.name; o.textContent = d.name; sel.appendChild(o); });
+      }).catch(() => {});
+      cmCalcCart();
+      document.getElementById('createMemberModal').classList.add('open');
+    }
+
+    function addCmChildField(name = '', age = '') {
+      const c = document.getElementById('cm_childrenContainer');
+      const d = document.createElement('div'); d.className = 'form-row'; d.style.marginBottom = '0.5rem';
+      d.innerHTML = `<input type="text" class="cm-child-name" placeholder="Child's name" value="${name}" style="width:100%;padding:0.6rem 1rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem"><input type="text" class="cm-child-age" placeholder="Age / category" value="${age}" oninput="cmCalcCart()" style="width:100%;padding:0.6rem 1rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem">`;
+      c.appendChild(d);
+      cmCalcCart();
+    }
+
+
+
+    document.getElementById('cm_marital_status').addEventListener('change', function() {
+      document.getElementById('cm_spouseFields').style.display = this.value === 'Married' ? 'block' : 'none';
+      cmCalcCart();
+    });
+
+    document.getElementById('cm_childrenContainer').addEventListener('input', function(e) {
+      if (e.target.classList.contains('cm-child-age')) cmCalcCart();
+    });
+
+    document.getElementById('createMemberForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      clearAlert();
+      const names = document.querySelectorAll('.cm-child-name');
+      const ages = document.querySelectorAll('.cm-child-age');
+      const children = [];
+      for (let i = 0; i < names.length; i++) {
+        if (names[i].value.trim()) children.push({ name: names[i].value.trim(), age: ages[i].value.trim() });
+      }
+      const total = cmCalcCart();
+      try {
+        await apiFetch('/members', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name: document.getElementById('cm_full_name').value.trim(),
+            gender: document.getElementById('cm_gender').value,
+            phone: document.getElementById('cm_phone').value.trim(),
+            password: document.getElementById('cm_password').value,
+            marital_status: document.getElementById('cm_marital_status').value,
+            spouse_name: document.getElementById('cm_spouse_name').value.trim(),
+            spouse_phone: document.getElementById('cm_spouse_phone').value.trim(),
+            children_info: children,
+            fellowship: document.getElementById('cm_fellowship').value,
+            department: document.getElementById('cm_department').value,
+            registration_fee: total,
+            mpesa_code: document.getElementById('cm_mpesa_code').value.trim(),
+          })
+        });
+        showAlert('Member created successfully!', 'success');
+        closeModal('createMemberModal');
+        loadMembers();
+        loadOverview();
+      } catch (err) { showAlert(err.message); }
+    });
+
+    const perm = adminData || {};
+    const isSuper = perm.role === 'superadmin' || perm.role === 'vicar';
+
+    requireAdminAuth();
+    if (adminData) {
+      document.getElementById('displayName').textContent = adminData.full_name;
+      document.getElementById('displayRole').textContent = adminData.role.replace('_', ' ');
+      if (adminData.target_fellowship) {
+        const notice = document.getElementById('fellowshipNotice');
+        notice.style.display = 'block';
+        notice.textContent = `You are a Fellowship Leader for: ${adminData.target_fellowship}`;
+      }
+      if (adminData.can_manage_admins || isSuper) {
+        document.getElementById('tabAdminsBtn').style.display = 'block';
+        document.getElementById('tabFinanceUsersBtn').style.display = 'block';
+        document.getElementById('tabPageEditorBtn').style.display = 'block';
+        document.getElementById('tabEventsBtn').style.display = 'block';
+      }
+      if (!adminData.can_manage_contributions) {
+        document.getElementById('tabContribBtn').style.display = 'none';
+        document.getElementById('addContributionCard').style.display = 'none';
+        document.getElementById('statContribsCard').style.display = 'none';
+        document.getElementById('statTotalAmtCard').style.display = 'none';
+      }
+    }
+
+    // ─── Overview ───
+    async function loadOverview() {
+      try {
+        const stats = await apiFetch('/stats');
+        const p = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
+        document.getElementById('statMembers').textContent = p(stats.total_members);
+        document.getElementById('statActive').textContent = p(stats.active_members);
+        document.getElementById('statContribs').textContent = p(stats.total_contributions);
+        document.getElementById('statTotalAmt').textContent = formatCurrency(stats.contribution_total);
+
+        const members = await apiFetch('/members');
+        const recent = members.slice(0, 5);
+        const container = document.getElementById('recentMembers');
+        if (recent.length === 0) {
+          container.innerHTML = '<p class="empty-state">No members yet.</p>';
+        } else {
+          let html = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Membership No</th><th>Phone</th><th>Status</th><th>Joined</th></tr></thead><tbody>';
+          recent.forEach(m => {
+            html += `<tr><td><strong>${escHtml(m.full_name)}</strong></td><td>${escHtml(m.membership_no)}</td><td>${escHtml(m.phone)}</td><td>${m.active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>'}</td><td>${formatDate(m.created_at)}</td></tr>`;
+          });
+          html += '</tbody></table></div>';
+          container.innerHTML = html;
+        }
+      } catch (err) { showAlert(err.message); }
+
+      loadDeptAndFellowshipStats();
+    }
+
+    async function loadDeptAndFellowshipStats() {
+      try {
+        const depts = await apiFetch('/stats/departments');
+        document.getElementById('deptStats').innerHTML = depts.map(d =>
+          `<span class="stat-chip"><strong>${escHtml(d.name)}</strong> ${d.member_count}</span>`
+        ).join('') || '<p class="empty-state">No departments</p>';
+
+        const fells = await apiFetch('/stats/fellowships');
+        document.getElementById('fellowshipStats').innerHTML = fells.map(f =>
+          `<span class="stat-chip"><strong>${escHtml(f.fellowship)}</strong>: ${f.member_count}</span>`
+        ).join('') || '<p class="empty-state">No fellowships</p>';
+      } catch (_) {}
+    }
+
+    // ─── Members ───
+    let allMembers = [];
+    async function loadMembers() {
+      try {
+        allMembers = await apiFetch('/members');
+        renderMembers(allMembers);
+      } catch (err) { showAlert(err.message); }
+    }
+
+    function renderMembers(list) {
+      const container = document.getElementById('membersList');
+      if (list.length === 0) {
+        container.innerHTML = '<p class="empty-state">No members found.</p>';
+        return;
+      }
+      let html = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Membership No</th><th>Gender</th><th>Phone</th><th>Fellowship</th><th>Dept</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+      list.forEach(m => {
+        html += `<tr class="member-row">
+          <td><strong>${escHtml(m.full_name)}</strong></td>
+          <td>${escHtml(m.membership_no)}</td>
+          <td>${escHtml(m.gender)}</td>
+          <td>${escHtml(m.phone)}</td>
+          <td>${escHtml(m.fellowship) || '—'}</td>
+          <td>${escHtml(m.department) || '—'}</td>
+          <td>${m.active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>'}</td>
+          <td><div class="actions-cell">
+            <button class="btn btn-primary btn-sm" onclick="viewMember(${m.id})">View</button>
+            ${adminData.role !== 'fellowship_leader' ? `<button class="btn btn-sm ${m.active ? 'btn-danger' : 'btn-primary'}" onclick="toggleMemberStatus(${m.id}, ${m.active ? 0 : 1})">${m.active ? 'Deactivate' : 'Activate'}</button>` : ''}
+          </div></td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function filterMembers() {
+      const q = document.getElementById('memberSearch').value.toLowerCase();
+      const status = document.getElementById('filterStatus').value;
+      let filtered = allMembers.filter(m =>
+        m.full_name.toLowerCase().includes(q) ||
+        m.phone.includes(q) ||
+        m.membership_no.toLowerCase().includes(q)
+      );
+      if (status === 'active') filtered = filtered.filter(m => m.active);
+      else if (status === 'inactive') filtered = filtered.filter(m => !m.active);
+      renderMembers(filtered);
+    }
+
+    async function toggleMemberStatus(id, newStatus) {
+      try {
+        await apiFetch(`/members/${id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ active: newStatus })
+        });
+        showAlert(newStatus ? 'Member activated' : 'Member deactivated', 'success');
+        loadMembers();
+        loadOverview();
+      } catch (err) { showAlert(err.message); }
+    }
+
+    let selectedMemberId = null;
+    async function viewMember(id) {
+      selectedMemberId = id;
+      try {
+        const member = await apiFetch('/members/' + id);
+        const contributions = await apiFetch('/contributions?member_id=' + id);
+        const contribTotal = contributions.reduce((s, c) => s + c.amount, 0);
+        let childrenHtml = 'None';
+        if (member.children_info && member.children_info.length > 0) {
+          childrenHtml = member.children_info.map(c => `${c.name} (${c.age || 'N/A'})`).join(', ');
+        }
+
+        document.getElementById('memberModalTitle').textContent = member.active ? `${member.full_name}` : `${member.full_name} (Inactive)`;
+        document.getElementById('memberDetailContent').innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem 1.5rem;margin-bottom:1.5rem">
+            <div><strong>Name:</strong> ${escHtml(member.full_name)}</div>
+            <div><strong>Membership No:</strong> ${escHtml(member.membership_no)}</div>
+            <div><strong>Gender:</strong> ${escHtml(member.gender)}</div>
+            <div><strong>Phone:</strong> ${escHtml(member.phone)}</div>
+            <div><strong>Status:</strong> ${member.active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>'}</div>
+            <div><strong>Marital Status:</strong> ${escHtml(member.marital_status) || 'N/A'}</div>
+            <div><strong>Spouse:</strong> ${escHtml(member.spouse_name) || 'N/A'} ${member.spouse_phone ? '('+escHtml(member.spouse_phone)+')' : ''}</div>
+            <div><strong>Fellowship:</strong> ${escHtml(member.fellowship) || 'N/A'}</div>
+            <div><strong>Department:</strong> ${escHtml(member.department) || 'N/A'}</div>
+            <div><strong>Children:</strong> ${childrenHtml}</div>
+            <div><strong>Reg. Fee:</strong> ${formatCurrency(member.registration_fee || 0)}</div>
+            <div><strong>MPesa Code:</strong> ${escHtml(member.mpesa_code) || 'N/A'}</div>
+            <div><strong>Member Since:</strong> ${formatDate(member.created_at)}</div>
+          </div>
+          <h3 style="margin-bottom:0.5rem">Contributions (${formatCurrency(contribTotal)} total)</h3>
+          ${contributions.length === 0 ? '<p class="empty-state">No contributions.</p>' : ''}
+          ${contributions.length > 0 ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Amount</th></tr></thead><tbody>
+            ${contributions.map(c => `<tr><td>${formatDate(c.date)}</td><td>${escHtml(c.type)}</td><td>${formatCurrency(c.amount)}</td></tr>`).join('')}
+          </tbody></table></div>` : ''}
+        `;
+        document.getElementById('memberModalActions').innerHTML = `
+          ${adminData.role !== 'fellowship_leader' ? `<button class="btn btn-sm ${member.active ? 'btn-danger' : 'btn-primary'}" onclick="toggleMemberStatus(${member.id}, ${member.active ? 0 : 1}); closeModal('memberModal')">${member.active ? 'Deactivate' : 'Activate'}</button>` : ''}
+          <button class="btn btn-sm btn-primary" onclick="resetPassword(${member.id})">Reset Password</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSelectedMember(${member.id})">Delete</button>
+          <button class="btn btn-sm btn-secondary" onclick="closeModal('memberModal')">Close</button>
+        `;
+        document.getElementById('memberModal').classList.add('open');
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function resetPassword(id) {
+      if (!confirm('Reset password to "reset123" for this member?')) return;
+      try {
+        const data = await apiFetch(`/members/${id}/reset-password`, { method: 'POST' });
+        showAlert(`Password reset to: ${data.new_password}`, 'success');
+        closeModal('memberModal');
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function deleteSelectedMember(id) {
+      if (!confirm('Delete this member and all their contributions? This cannot be undone.')) return;
+      try {
+        await apiFetch(`/members/${id}`, { method: 'DELETE' });
+        showAlert('Member deleted', 'success');
+        closeModal('memberModal');
+        loadMembers();
+        loadOverview();
+      } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Contributions ───
+    async function loadContributions() {
+      try {
+        const contribs = await apiFetch('/contributions');
+        const container = document.getElementById('contributionsList');
+        if (contribs.length === 0) {
+          container.innerHTML = '<p class="empty-state">No contributions yet.</p>';
+          return;
+        }
+        let html = '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Member</th><th>Membership No</th><th>Fellowship</th><th>Type</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
+        contribs.forEach(c => {
+          const approved = c.status === 1;
+          html += `<tr><td>${formatDate(c.date)}</td><td>${escHtml(c.full_name)}</td><td>${escHtml(c.membership_no)}</td><td>${escHtml(c.fellowship) || '—'}</td><td>${escHtml(c.type)}</td><td>${escHtml(c.description) || '—'}</td><td><strong>${formatCurrency(c.amount)}</strong></td><td>${approved ? '<span style="color:var(--success)">Approved</span>' : `<button class="btn btn-sm btn-primary" onclick="approveContribution(${c.id})">Approve</button>`}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function approveContribution(id) {
+      try {
+        await apiFetch(`/contributions/${id}/approve`, { method: 'PATCH' });
+        showAlert('Contribution approved!', 'success');
+        loadContributions();
+      } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Announcements ───
+    let editingAnnId = null;
+    async function loadAnnouncements() {
+      try {
+        const anns = await apiFetch('/announcements');
+        const container = document.getElementById('announcementsList');
+        if (anns.length === 0) {
+          container.innerHTML = '<p class="empty-state">No announcements yet.</p>';
+          return;
+        }
+        let html = '';
+        anns.forEach(a => {
+          const encodedTitle = encodeURIComponent(a.title);
+          const encodedBody = encodeURIComponent(a.body);
+          const encodedDept = encodeURIComponent(a.department || '');
+          html += `<div class="announcement-item">
+            <div class="ann-title">${escHtml(a.title)}</div>
+            <div class="ann-date">${formatDate(a.created_at)}${a.department ? ' &mdash; ' + escHtml(a.department) : ''}</div>
+            <div class="ann-body">${escHtml(a.body)}</div>
+            <div style="margin-top:0.5rem" class="actions-cell">
+              <button class="btn btn-primary btn-sm" data-ann-edit="${a.id}" data-title="${encodedTitle}" data-body="${encodedBody}" data-dept="${encodedDept}">Edit</button>
+              <button class="btn btn-danger btn-sm" data-ann-delete="${a.id}">Delete</button>
+            </div>
+          </div>`;
+        });
+        container.innerHTML = html;
+        container.querySelectorAll('[data-ann-edit]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            editAnnouncement(
+              parseInt(btn.dataset.annEdit),
+              decodeURIComponent(btn.dataset.title),
+              decodeURIComponent(btn.dataset.body),
+              decodeURIComponent(btn.dataset.dept)
+            );
+          });
+        });
+        container.querySelectorAll('[data-ann-delete]').forEach(btn => {
+          btn.addEventListener('click', () => deleteAnnouncement(parseInt(btn.dataset.annDelete)));
+        });
+      } catch (err) { showAlert(err.message); }
+    }
+
+    function openAnnouncementModal() {
+      editingAnnId = null;
+      document.getElementById('annModalTitle').textContent = 'New Announcement';
+      document.getElementById('ann_title').value = '';
+      document.getElementById('ann_body').value = '';
+      document.getElementById('ann_department').value = '';
+      document.getElementById('announcementModal').classList.add('open');
+    }
+
+    function editAnnouncement(id, title, body, dept) {
+      editingAnnId = id;
+      document.getElementById('annModalTitle').textContent = 'Edit Announcement';
+      document.getElementById('ann_title').value = title;
+      document.getElementById('ann_body').value = body;
+      document.getElementById('ann_department').value = dept;
+      document.getElementById('announcementModal').classList.add('open');
+    }
+
+    document.getElementById('announcementForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      clearAlert();
+      const title = document.getElementById('ann_title').value;
+      const body = document.getElementById('ann_body').value;
+      const department = document.getElementById('ann_department').value;
+      try {
+        if (editingAnnId) {
+          await apiFetch('/announcements/' + editingAnnId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body, department }) });
+          showAlert('Announcement updated!', 'success');
+        } else {
+          await apiFetch('/announcements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body, department }) });
+          showAlert('Announcement created!', 'success');
+        }
+        closeModal('announcementModal');
+        loadAnnouncements();
+      } catch (err) { showAlert(err.message); }
+    });
+
+    async function deleteAnnouncement(id) {
+      if (!confirm('Delete this announcement?')) return;
+      try { await apiFetch('/announcements/' + id, { method: 'DELETE' }); showAlert('Announcement deleted', 'success'); loadAnnouncements(); } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Admin Management ───
+    let editingAdminId = null;
+    let rolesList = [];
+
+    async function loadAdmins() {
+      try {
+        const admins = await apiFetch('/admins');
+        const container = document.getElementById('adminsList');
+        if (admins.length === 0) {
+          container.innerHTML = '<p class="empty-state">No admin accounts.</p>';
+          return;
+        }
+        const roleClass = { superadmin: 'role-superadmin', vicar: 'role-vicar', treasurer: 'role-treasurer', secretary: 'role-secretary', vice_chairman: 'role-vice_chairman', peoples_warden: 'role-peoples_warden', vicars_warden: 'role-vicars_warden', sunday_school_leader: 'role-sunday_school_leader', fellowship_leader: 'role-fellowship_leader' };
+        let html = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Fellowship</th><th>Permissions</th><th>Actions</th></tr></thead><tbody>';
+        admins.forEach(a => {
+          const perms = [];
+          if (a.can_manage_members) perms.push('Members');
+          if (a.can_manage_contributions) perms.push('Contributions');
+          if (a.can_manage_announcements) perms.push('Announcements');
+          if (a.can_manage_admins) perms.push('Admins');
+          const isSelf = a.id === adminData.id;
+          html += `<tr>
+            <td><strong>${escHtml(a.full_name)}</strong>${isSelf ? ' <span style="font-size:0.7rem;color:var(--text-light)">(you)</span>' : ''}</td>
+            <td>${escHtml(a.username)}</td>
+            <td><span class="role-badge ${roleClass[a.role] || 'role-admin'}">${escHtml(a.role.replace('_', ' '))}</span></td>
+            <td>${escHtml(a.target_fellowship) || '—'}</td>
+            <td style="font-size:0.8rem">${perms.length ? perms.join(', ') : '—'}</td>
+            <td><div class="actions-cell">
+              <button class="btn btn-primary btn-sm" onclick="editAdmin(${a.id})">Edit</button>
+              ${!isSelf ? `<button class="btn btn-danger btn-sm" onclick="deleteAdmin(${a.id})">Delete</button>` : ''}
+            </div></td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function loadRoles() {
+      try {
+        rolesList = await apiFetch('/admins/roles');
+        const sel = document.getElementById('adm_role');
+        rolesList.forEach(r => {
+          const opt = document.createElement('option');
+          opt.value = r.id;
+          opt.textContent = r.label;
+          sel.appendChild(opt);
+        });
+      } catch (err) { /* ignore */ }
+    }
+
+    async function loadFellowships() {
+      try {
+        const fells = await apiFetch('/fellowships');
+        const sel = document.getElementById('adm_fellowship');
+        fells.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f;
+          opt.textContent = f;
+          sel.appendChild(opt);
+        });
+      } catch (err) { /* ignore */ }
+    }
+
+    function onAdminRoleChange() {
+      const roleId = document.getElementById('adm_role').value;
+      const role = rolesList.find(r => r.id === roleId);
+      const fGroup = document.getElementById('adm_fellowship_group');
+      if (role) {
+        document.getElementById('perm_members').checked = !!role.permissions.can_manage_members;
+        document.getElementById('perm_contributions').checked = !!role.permissions.can_manage_contributions;
+        document.getElementById('perm_announcements').checked = !!role.permissions.can_manage_announcements;
+        document.getElementById('perm_admins').checked = !!role.permissions.can_manage_admins;
+        if (role.requires_fellowship) { fGroup.style.display = 'block'; } else { fGroup.style.display = 'none'; document.getElementById('adm_fellowship').value = ''; }
+      } else {
+        fGroup.style.display = 'none';
+      }
+    }
+
+    function openAdminModal() {
+      editingAdminId = null;
+      document.getElementById('adminModalTitle').textContent = 'New Admin';
+      document.getElementById('adm_username').value = ''; document.getElementById('adm_username').disabled = false;
+      document.getElementById('adm_password').value = ''; document.getElementById('adm_password').required = true;
+      document.getElementById('adm_full_name').value = '';
+      document.getElementById('adm_role').value = '';
+      document.getElementById('adm_fellowship_group').style.display = 'none';
+      document.getElementById('perm_members').checked = false;
+      document.getElementById('perm_contributions').checked = false;
+      document.getElementById('perm_announcements').checked = false;
+      document.getElementById('perm_admins').checked = false;
+      document.getElementById('adminModal').classList.add('open');
+    }
+
+    async function editAdmin(id) {
+      editingAdminId = id;
+      document.getElementById('adminModalTitle').textContent = 'Edit Admin';
+      document.getElementById('adm_password').required = false;
+      try {
+        const admins = await apiFetch('/admins');
+        const a = admins.find(x => x.id === id);
+        if (!a) return;
+        document.getElementById('adm_username').value = a.username;
+        document.getElementById('adm_username').disabled = true;
+        document.getElementById('adm_password').value = '';
+        document.getElementById('adm_full_name').value = a.full_name;
+        document.getElementById('adm_role').value = a.role;
+        document.getElementById('perm_members').checked = !!a.can_manage_members;
+        document.getElementById('perm_contributions').checked = !!a.can_manage_contributions;
+        document.getElementById('perm_announcements').checked = !!a.can_manage_announcements;
+        document.getElementById('perm_admins').checked = !!a.can_manage_admins;
+        const fGroup = document.getElementById('adm_fellowship_group');
+        const role = rolesList.find(r => r.id === a.role);
+        if (role && role.requires_fellowship) { fGroup.style.display = 'block'; document.getElementById('adm_fellowship').value = a.target_fellowship || ''; }
+        else { fGroup.style.display = 'none'; document.getElementById('adm_fellowship').value = ''; }
+        document.getElementById('adminModal').classList.add('open');
+      } catch (err) { showAlert(err.message); }
+    }
+
+    document.getElementById('adminForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      clearAlert();
+      const data = {
+        username: document.getElementById('adm_username').value,
+        password: document.getElementById('adm_password').value,
+        full_name: document.getElementById('adm_full_name').value,
+        role: document.getElementById('adm_role').value || 'admin',
+        target_fellowship: document.getElementById('adm_fellowship').value || '',
+        permissions: {
+          can_manage_members: document.getElementById('perm_members').checked,
+          can_manage_contributions: document.getElementById('perm_contributions').checked,
+          can_manage_announcements: document.getElementById('perm_announcements').checked,
+          can_manage_admins: document.getElementById('perm_admins').checked,
+        }
+      };
+      try {
+        if (editingAdminId) {
+          const updateData = { full_name: data.full_name, role: data.role, target_fellowship: data.target_fellowship, permissions: data.permissions };
+          if (data.password) updateData.password = data.password;
+          await apiFetch('/admins/' + editingAdminId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updateData) });
+          showAlert('Admin updated!', 'success');
+        } else {
+          if (!data.password) { showAlert('Password is required for new admins'); return; }
+          await apiFetch('/admins', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+          showAlert('Admin created!', 'success');
+        }
+        closeModal('adminModal');
+        loadAdmins();
+      } catch (err) { showAlert(err.message); }
+    });
+
+    async function deleteAdmin(id) {
+      if (!confirm('Delete this admin account?')) return;
+      try { await apiFetch('/admins/' + id, { method: 'DELETE' }); showAlert('Admin deleted', 'success'); loadAdmins(); } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Finance Users ───
+    async function loadFinanceUsers() {
+      const el = document.getElementById('financeUsersList');
+      if (!el) return;
+      el.innerHTML = '<p class="empty-state">Loading users...</p>';
+      try {
+        const users = await apiFetch('/finance-users');
+        if (!users || users.length === 0) {
+          el.innerHTML = '<p class="empty-state">No finance users found</p>';
+          return;
+        }
+        el.innerHTML =
+          '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Permissions</th><th>Status</th><th>Actions</th></tr></thead><tbody>' +
+          users.map(u => '<tr><td><strong>' + escHtml(u.full_name) + '</strong></td><td>' + escHtml(u.username) + '</td><td>' + escHtml(u.role.replace('_', ' ')) + '</td><td style="font-size:0.75rem">' +
+            (u.can_manage_entries ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Entries</span> ' : '') +
+            (u.can_manage_petty_cash ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Petty Cash</span> ' : '') +
+            (u.can_manage_development ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Development</span> ' : '') +
+            (u.can_manage_users ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Users</span> ' : '') +
+            (u.can_view_reports ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Reports</span> ' : '') +
+            '</td><td>' + (u.active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>') + '</td><td><div class="actions-cell">' +
+            '<button class="btn btn-sm ' + (u.active ? 'btn-danger' : 'btn-primary') + '" onclick="toggleFinanceUser(' + u.id + ')">' + (u.active ? 'Deactivate' : 'Activate') + '</button>' +
+            '<button class="btn btn-sm btn-danger" onclick="deleteFinanceUser(' + u.id + ')">Delete</button>' +
+            '</div></td></tr>').join('') +
+          '</tbody></table></div>';
+      } catch (err) {
+        el.innerHTML = '<p class="empty-state" style="color:#dc3545">Error: ' + escHtml(err.message) + '</p>';
+        showAlert(err.message);
+      }
+    }
+
+    async function addFinanceUser(e) {
+      e.preventDefault();
+      try {
+        await apiFetch('/finance-users', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('afuUsername').value.trim(),
+            full_name: document.getElementById('afuFullName').value,
+            password: document.getElementById('afuPassword').value,
+            role: document.getElementById('afuRole').value,
+            can_manage_entries: document.getElementById('afuPermEntries').checked ? 1 : 0,
+            can_manage_petty_cash: document.getElementById('afuPermPettyCash').checked ? 1 : 0,
+            can_manage_development: document.getElementById('afuPermDevelopment').checked ? 1 : 0,
+            can_manage_users: document.getElementById('afuPermUsers').checked ? 1 : 0,
+            can_view_reports: document.getElementById('afuPermReports').checked ? 1 : 0
+          })
+        });
+        showAlert('Finance user added', 'success');
+        document.getElementById('afuUsername').value = '';
+        document.getElementById('afuFullName').value = '';
+        document.getElementById('afuPassword').value = '';
+        loadFinanceUsers();
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function toggleFinanceUser(id) {
+      try { await apiFetch('/finance-users/' + id + '/toggle', { method: 'PATCH' }); loadFinanceUsers(); } catch (err) { showAlert(err.message); }
+    }
+
+    async function deleteFinanceUser(id) {
+      if (!confirm('Delete this finance user permanently?')) return;
+      try { await apiFetch('/finance-users/' + id, { method: 'DELETE' }); showAlert('User deleted', 'success'); loadFinanceUsers(); } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Contribution Form ───
+    let contribSelectedId = null;
+
+    async function populateContribMemberList() {
+      if (allMembers.length === 0) {
+        try { allMembers = await apiFetch('/members'); } catch (e) { return; }
+      }
+      const list = document.getElementById('contribMemberList');
+      const existing = list.querySelectorAll('option');
+      if (existing.length === allMembers.length) return;
+      list.innerHTML = allMembers.map(m => `<option value="${escHtml(m.full_name)}"></option>`).join('');
+    }
+
+    document.getElementById('contribMember').addEventListener('focus', populateContribMemberList);
+
+    document.getElementById('contribMember').addEventListener('input', function() {
+      const val = this.value.trim().toLowerCase();
+      if (!val) { contribSelectedId = null; return; }
+      const match = allMembers.find(m =>
+        m.full_name.toLowerCase() === val ||
+        m.phone === val ||
+        m.membership_no.toLowerCase() === val
+      );
+      contribSelectedId = match ? match.id : null;
+    });
+
+    document.getElementById('contribMember').addEventListener('change', function() {
+      const val = this.value.trim().toLowerCase();
+      if (!val) { contribSelectedId = null; return; }
+      const match = allMembers.find(m => m.full_name.toLowerCase() === val);
+      contribSelectedId = match ? match.id : null;
+    });
+
+    document.getElementById('contributionForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      clearAlert();
+      const input = document.getElementById('contribMember');
+      const val = input.value.trim().toLowerCase();
+      if (!val) { showAlert('Type a member name, phone, or membership no'); return; }
+
+      let member = allMembers.find(m =>
+        m.full_name.toLowerCase() === val ||
+        m.phone === val ||
+        m.membership_no.toLowerCase() === val
+      );
+      if (!member) {
+        if (allMembers.length === 0) { showAlert('No members loaded. Click the search box first to load the member list.'); return; }
+        const partial = allMembers.filter(m => m.full_name.toLowerCase().includes(val));
+        if (partial.length === 1) { member = partial[0]; }
+        else if (partial.length > 1) { showAlert('Multiple members match "' + val + '". Select the exact name from suggestions.'); return; }
+        else { showAlert('No member found matching "' + val + '".'); return; }
+      }
+
+      try {
+        await apiFetch('/contributions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            member_id: member.id,
+            type: document.getElementById('contribType').value,
+            amount: parseFloat(document.getElementById('contribAmount').value),
+            description: document.getElementById('contribDesc').value,
+          })
+        });
+        showAlert('Contribution added (pending approval)!', 'success');
+        input.value = '';
+        contribSelectedId = null;
+        document.getElementById('contribAmount').value = '';
+        document.getElementById('contribDesc').value = '';
+        loadContributions();
+      } catch (err) { showAlert(err.message); }
+    });
+
+    // ─── Change Requests ───
+    async function loadChangeRequests() {
+      try {
+        const reqs = await apiFetch('/change-requests');
+        const container = document.getElementById('changeRequestsList');
+        if (reqs.length === 0) {
+          container.innerHTML = '<p class="empty-state">No pending change requests.</p>';
+          return;
+        }
+        let html = '<div class="table-wrap"><table><thead><tr><th>Member</th><th>Membership No</th><th>Field</th><th>Current</th><th>Requested</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+        reqs.forEach(r => {
+          html += `<tr>
+            <td><strong>${escHtml(r.full_name)}</strong></td>
+            <td>${escHtml(r.membership_no)}</td>
+            <td style="text-transform:capitalize">${r.field}</td>
+            <td>${r.current_value || '—'}</td>
+            <td><strong>${escHtml(r.requested_value)}</strong></td>
+            <td>${formatDate(r.created_at)}</td>
+            <td><div class="actions-cell">
+              <button class="btn btn-sm btn-primary" onclick="approveChangeRequest(${r.id})">Approve</button>
+              <button class="btn btn-sm btn-danger" onclick="rejectChangeRequest(${r.id})">Reject</button>
+            </div></td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function approveChangeRequest(id) {
+      if (!confirm('Approve this change request?')) return;
+      try {
+        const data = await apiFetch('/change-requests/' + id + '/approve', { method: 'POST' });
+        showAlert(data.message, 'success');
+        loadChangeRequests();
+        loadOverview();
+        loadMembers();
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function rejectChangeRequest(id) {
+      if (!confirm('Reject this change request?')) return;
+      try {
+        await apiFetch('/change-requests/' + id + '/reject', { method: 'POST' });
+        showAlert('Change request rejected', 'success');
+        loadChangeRequests();
+      } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Page Editor ───
+    const pageFields = {
+      home: [
+        { key: 'hero_accent', label: 'Hero Welcome Text', type: 'text' },
+        { key: 'hero_title', label: 'Hero Title', type: 'text' },
+        { key: 'hero_text', label: 'Hero Description', type: 'textarea' },
+        { key: 'hero_btn1_text', label: 'Hero Button 1 Text', type: 'text' },
+        { key: 'hero_btn1_link', label: 'Hero Button 1 Link', type: 'text' },
+        { key: 'hero_btn2_text', label: 'Hero Button 2 Text', type: 'text' },
+        { key: 'hero_btn2_link', label: 'Hero Button 2 Link', type: 'text' },
+        { key: 'welcome_title', label: 'Welcome Title', type: 'text' },
+        { key: 'welcome_text', label: 'Welcome Content', type: 'textarea' },
+        { key: 'welcome_btn_text', label: 'Welcome Button Text', type: 'text' },
+        { key: 'welcome_btn_link', label: 'Welcome Button Link', type: 'text' },
+        { key: 'service_times_title', label: 'Service Times Title', type: 'text' },
+        { key: 'service_times_subtitle', label: 'Service Times Subtitle', type: 'text' },
+        { key: 'service1_title', label: 'Service 1 Title', type: 'text' },
+        { key: 'service1_name', label: 'Service 1 Name', type: 'text' },
+        { key: 'service1_time', label: 'Service 1 Time', type: 'text' },
+        { key: 'service2_title', label: 'Service 2 Title', type: 'text' },
+        { key: 'service2_name', label: 'Service 2 Name', type: 'text' },
+        { key: 'service2_time', label: 'Service 2 Time', type: 'text' },
+        { key: 'service3_title', label: 'Service 3 Title', type: 'text' },
+        { key: 'service3_name', label: 'Service 3 Name', type: 'text' },
+        { key: 'service3_time', label: 'Service 3 Time', type: 'text' },
+      ],
+      about: [
+        { key: 'page_title', label: 'Page Title', type: 'text' },
+        { key: 'page_subtitle', label: 'Page Subtitle', type: 'textarea' },
+        { key: 'vision_title', label: 'Vision Title', type: 'text' },
+        { key: 'vision_text', label: 'Vision Text', type: 'textarea' },
+        { key: 'mission_title', label: 'Mission Title', type: 'text' },
+        { key: 'mission_text', label: 'Mission Text', type: 'textarea' },
+        { key: 'pillars_title', label: 'Pillars Title', type: 'text' },
+        { key: 'pillar1', label: 'Pillar 1 (Scripture)', type: 'textarea' },
+        { key: 'pillar2', label: 'Pillar 2 (Tradition)', type: 'textarea' },
+        { key: 'pillar3', label: 'Pillar 3 (Reason)', type: 'textarea' },
+      ],
+      contact: [
+        { key: 'page_title', label: 'Page Title', type: 'text' },
+        { key: 'page_subtitle', label: 'Page Subtitle', type: 'textarea' },
+        { key: 'contact_intro', label: 'Intro Text', type: 'textarea' },
+        { key: 'contact_location', label: 'Location', type: 'textarea' },
+        { key: 'contact_email', label: 'Email Address', type: 'text' },
+        { key: 'contact_phone', label: 'Phone Number', type: 'text' },
+        { key: 'contact_hours', label: 'Office Hours', type: 'text' },
+      ],
+      events: [
+        { key: 'page_title', label: 'Page Title', type: 'text' },
+        { key: 'page_subtitle', label: 'Page Subtitle', type: 'textarea' },
+        { key: 'section_title', label: 'Events Section Title', type: 'text' },
+        { key: 'section_subtitle', label: 'Events Section Subtitle', type: 'text' },
+      ],
+    };
+
+    let currentPageContent = {};
+
+    async function loadPageContent() {
+      const page = document.getElementById('pageSelect').value;
+      const container = document.getElementById('pageEditorFields');
+      const saveBtn = document.getElementById('savePageContentBtn');
+      if (!page) {
+        container.innerHTML = '<p class="empty-state">Select a page above to edit its content.</p>';
+        saveBtn.style.display = 'none';
+        return;
+      }
+      container.innerHTML = '<p class="empty-state">Loading...</p>';
+      saveBtn.style.display = 'none';
+      try {
+        const data = await apiFetch('/content/' + page);
+        currentPageContent = data;
+        const fields = pageFields[page];
+        if (!fields) { container.innerHTML = '<p class="empty-state">No editable fields for this page.</p>'; return; }
+        let html = '';
+        for (const f of fields) {
+          const val = data[f.key] || '';
+          html += '<div class="form-group"><label>' + f.label + '</label>';
+          if (f.type === 'textarea') {
+            html += '<textarea id="pe_' + f.key + '" rows="4">' + escHtml(val) + '</textarea>';
+          } else {
+            html += '<input type="text" id="pe_' + f.key + '" value="' + escHtml(val) + '">';
+          }
+          html += '</div>';
+        }
+        container.innerHTML = html;
+        saveBtn.style.display = 'inline-block';
+      } catch (err) {
+        container.innerHTML = '<p class="empty-state" style="color:#dc3545">Error: ' + escHtml(err.message) + '</p>';
+      }
+    }
+
+    async function savePageContent() {
+      const page = document.getElementById('pageSelect').value;
+      if (!page) return;
+      const fields = pageFields[page];
+      const updates = {};
+      for (const f of fields) {
+        const el = document.getElementById('pe_' + f.key);
+        if (el) updates[f.key] = el.value;
+      }
+      try {
+        await apiFetch('/content', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page, fields: updates })
+        });
+        showAlert('Page content saved successfully!', 'success');
+      } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Events Management ───
+    async function loadEvents() {
+      try {
+        const events = await apiFetch('/events');
+        const container = document.getElementById('eventsList');
+        if (!events.length) { container.innerHTML = '<p class="empty-state">No events yet.</p>'; return; }
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        let html = '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Title</th><th>Description</th><th>Location</th><th>Time</th><th>Actions</th></tr></thead><tbody>';
+        events.forEach(e => {
+          const d = new Date(e.date);
+          html += `<tr><td>${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}</td><td><strong>${escHtml(e.title)}</strong></td><td>${escHtml(e.description)}</td><td>${escHtml(e.location) || '—'}</td><td>${escHtml(e.time) || '—'}</td><td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="deleteEvent(${e.id})">Delete</button></div></td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function addEvent(e) {
+      e.preventDefault();
+      try {
+        await apiFetch('/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: document.getElementById('evTitle').value,
+            description: document.getElementById('evDesc').value,
+            location: document.getElementById('evLoc').value,
+            date: document.getElementById('evDate').value,
+            time: document.getElementById('evTime').value,
+          })
+        });
+        showAlert('Event added!', 'success');
+        document.getElementById('evTitle').value = '';
+        document.getElementById('evDesc').value = '';
+        document.getElementById('evLoc').value = '';
+        document.getElementById('evDate').value = '';
+        document.getElementById('evTime').value = '';
+        loadEvents();
+      } catch (err) { showAlert(err.message); }
+    }
+
+    async function deleteEvent(id) {
+      if (!confirm('Delete this event?')) return;
+      try {
+        await apiFetch('/events/' + id, { method: 'DELETE' });
+        showAlert('Event deleted', 'success');
+        loadEvents();
+      } catch (err) { showAlert(err.message); }
+    }
+
+    // ─── Init ───
+    loadOverview();
+    loadMembers();
+    loadContributions();
+    loadAnnouncements();
+    if (adminData && (adminData.can_manage_admins || isSuper)) {
+      loadAdmins();
+      loadRoles();
+      loadFellowships();
+      loadFinanceUsers();
+      loadEvents();
+    }
+    if (adminData && (adminData.role === 'superadmin' || adminData.role === 'vicar')) {
+      document.getElementById('tabChangeRequestsBtn').style.display = 'block';
+      loadChangeRequests();
+    }
+  </script>
+</body>
+</html>
