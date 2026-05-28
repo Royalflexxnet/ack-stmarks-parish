@@ -28,89 +28,16 @@
   </nav>
 
   <div class="page-header">
-    <h1>Events</h1>
-    <p>Stay connected with everything happening at ACK St. Mark's Parish - Malaa</p>
+    <h1 data-content="page_title">Events</h1>
+    <p data-content="page_subtitle">Stay connected with everything happening at ACK St. Mark's Parish - Malaa</p>
   </div>
 
   <section class="events-list">
     <div class="container">
-      <h2 class="section-title">Upcoming Events</h2>
-      <p class="section-subtitle">There's always something happening — join us</p>
+      <h2 class="section-title" data-content="section_title">Upcoming Events</h2>
+      <p class="section-subtitle" data-content="section_subtitle">There's always something happening — join us</p>
 
-      <div class="event-card">
-        <div class="event-date">
-          <div class="month">May</div>
-          <div class="day">31</div>
-        </div>
-        <div class="event-info">
-          <h3>Community BBQ & Fellowship</h3>
-          <p>Join us for food, games, and great company! Bring the whole family for an afternoon of fun and connection.</p>
-          <div class="meta">
-            <span>&#128205; Church Lawn</span>
-            <span>&#128338; 12:00 PM &ndash; 3:00 PM</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="event-card">
-        <div class="event-date">
-          <div class="month">Jun</div>
-          <div class="day">07</div>
-        </div>
-        <div class="event-info">
-          <h3>Summer Youth Retreat</h3>
-          <p>An unforgettable weekend for students grades 6&ndash;12. Worship, teaching, and outdoor activities.</p>
-          <div class="meta">
-            <span>&#128205; Camp Pine Valley</span>
-            <span>&#128338; Fri 4 PM &ndash; Sun 2 PM</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="event-card">
-        <div class="event-date">
-          <div class="month">Jun</div>
-          <div class="day">14</div>
-        </div>
-        <div class="event-info">
-          <h3>Women's Brunch</h3>
-          <p>All women are invited for a morning of encouragement, delicious food, and meaningful connection.</p>
-          <div class="meta">
-            <span>&#128205; Fellowship Hall</span>
-            <span>&#128338; 10:00 AM &ndash; 12:00 PM</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="event-card">
-        <div class="event-date">
-          <div class="month">Jun</div>
-          <div class="day">21</div>
-        </div>
-        <div class="event-info">
-          <h3>Father's Day Service</h3>
-          <p>A special service honoring fathers and celebrating the impact of godly leadership in our families.</p>
-          <div class="meta">
-            <span>&#128205; Main Sanctuary</span>
-            <span>&#128338; 10:45 AM</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="event-card">
-        <div class="event-date">
-          <div class="month">Jun</div>
-          <div class="day">28</div>
-        </div>
-        <div class="event-info">
-          <h3>Worship Night</h3>
-          <p>An evening of extended worship, prayer, and seeking God together as a church family.</p>
-          <div class="meta">
-            <span>&#128205; Main Sanctuary</span>
-            <span>&#128338; 6:30 PM &ndash; 8:00 PM</span>
-          </div>
-        </div>
-      </div>
+      <div id="eventsContainer"><p>Loading events...</p></div>
     </div>
   </section>
 
@@ -157,5 +84,28 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script src="js/content-loader.js"></script>
+  <script>
+    fetch('/api/events')
+      .then(r => r.json())
+      .then(events => {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const container = document.getElementById('eventsContainer');
+        if (!events.length) {
+          container.innerHTML = '<p>No upcoming events at this time. Check back soon!</p>';
+          return;
+        }
+        container.innerHTML = events.map(e => {
+          const d = new Date(e.date);
+          const m = months[d.getMonth()];
+          const day = d.getDate();
+          const meta = [];
+          if (e.location) meta.push('<span>\u{1F4CD} ' + e.location + '</span>');
+          if (e.time) meta.push('<span>\u{1F552} ' + e.time + '</span>');
+          return '<div class="event-card"><div class="event-date"><div class="month">' + m + '</div><div class="day">' + day + '</div></div><div class="event-info"><h3>' + e.title + '</h3><p>' + e.description + '</p><div class="meta">' + meta.join('') + '</div></div></div>';
+        }).join('');
+      })
+      .catch(() => document.getElementById('eventsContainer').innerHTML = '<p>Could not load events.</p>');
+  </script>
 </body>
 </html>

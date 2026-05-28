@@ -28,8 +28,8 @@
   </nav>
 
   <div class="page-header">
-    <h1>Contact Us</h1>
-    <p>We'd love to hear from you — get in touch or stop by</p>
+    <h1 data-content="page_title">Contact Us</h1>
+    <p data-content="page_subtitle">We'd love to hear from you — get in touch or stop by</p>
   </div>
 
   <section class="contact-content">
@@ -37,13 +37,13 @@
       <div class="contact-grid">
         <div class="contact-info">
           <h2>Get In Touch</h2>
-          <p>Have a question, prayer request, or just want to say hello? We'd love to connect with you!</p>
+          <p data-content="contact_intro">Have a question, prayer request, or just want to say hello? We'd love to connect with you!</p>
 
           <div class="contact-detail">
             <div class="icon">&#128205;</div>
             <div>
               <h4>Our Location</h4>
-              <p>Malaa<br>Machakos, Kenya</p>
+              <p data-content="contact_location">Malaa<br>Machakos, Kenya</p>
             </div>
           </div>
 
@@ -51,7 +51,7 @@
             <div class="icon">&#128231;</div>
             <div>
               <h4>Email</h4>
-              <p>stmarks.malaa@gmail.com</p>
+              <p data-content="contact_email">stmarks.malaa@gmail.com</p>
             </div>
           </div>
 
@@ -59,7 +59,7 @@
             <div class="icon">&#128222;</div>
             <div>
               <h4>Phone</h4>
-              <p>+254 712 345 678</p>
+              <p data-content="contact_phone">+254 712 345 678</p>
             </div>
           </div>
 
@@ -67,7 +67,7 @@
             <div class="icon">&#128338;</div>
             <div>
               <h4>Office Hours</h4>
-              <p>Mon&ndash;Fri: 9:00 AM &ndash; 5:00 PM</p>
+              <p data-content="contact_hours">Mon&ndash;Fri: 9:00 AM &ndash; 5:00 PM</p>
             </div>
           </div>
 
@@ -148,6 +148,7 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script src="js/content-loader.js"></script>
   <script>
     document.querySelector('.contact-form').addEventListener('submit', function(e) {
       e.preventDefault();

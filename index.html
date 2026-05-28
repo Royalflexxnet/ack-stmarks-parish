@@ -29,12 +29,12 @@
 
   <section class="hero">
     <div class="hero-content">
-      <p class="accent-text">Welcome to ACK St. Mark's Parish - Malaa</p>
-      <h1>A Place to Belong, Grow, and Serve</h1>
-      <p>We are a community of faith dedicated to loving God, loving people, and making disciples of Jesus Christ. No matter where you are on your spiritual journey, you are welcome here.</p>
+      <p class="accent-text" data-content="hero_accent">Welcome to ACK St. Mark's Parish - Malaa</p>
+      <h1 data-content="hero_title">A Place to Belong, Grow, and Serve</h1>
+      <p data-content="hero_text">We are a community of faith dedicated to loving God, loving people, and making disciples of Jesus Christ. No matter where you are on your spiritual journey, you are welcome here.</p>
       <div class="hero-buttons">
-        <a href="portal/register" class="btn btn-primary">Register as Member</a>
-        <a href="about.html" class="btn btn-outline">Plan Your Visit</a>
+        <a href="portal/register" class="btn btn-primary" data-content="hero_btn1_text" data-content-href="hero_btn1_link">Register as Member</a>
+        <a href="about.html" class="btn btn-outline" data-content="hero_btn2_text" data-content-href="hero_btn2_link">Plan Your Visit</a>
       </div>
     </div>
   </section>
@@ -43,11 +43,11 @@
     <div class="container">
       <div class="welcome-grid">
         <div class="welcome-text">
-          <h2>You Are Welcome Here</h2>
-          <p>At ACK  St. Mark's Parish - Malaa, we believe that church is more than a building — it's a family. Whether you're exploring faith for the first time or have walked with Christ for years, you'll find a place to belong.</p>
+          <h2 data-content="welcome_title">You Are Welcome Here</h2>
+          <div data-content="welcome_text"><p>At ACK St. Mark's Parish - Malaa, we believe that church is more than a building — it's a family. Whether you're exploring faith for the first time or have walked with Christ for years, you'll find a place to belong.</p>
           <p>Our heart is to see lives transformed by the love of Jesus. Through authentic worship, relevant teaching, and genuine community, we strive to create an environment where you can encounter God and grow in your faith.</p>
-          <p>Come as you are. You don't need to have it all together — none of us do. We're all on a journey together.</p>
-          <a href="contact.html" class="btn btn-primary" style="margin-top:1rem">Get In Touch</a>
+          <p>Come as you are. You don't need to have it all together — none of us do. We're all on a journey together.</p></div>
+          <a href="contact.html" class="btn btn-primary" style="margin-top:1rem" data-content="welcome_btn_text" data-content-href="welcome_btn_link">Get In Touch</a>
         </div>
         <div class="welcome-image">
           <img src="https://images.unsplash.com/photo-1519491050282-cf00c82424b4?w=800&q=80&auto=format&fit=crop" alt="Cathedral interior" style="width:100%;height:100%;object-fit:cover">
@@ -58,23 +58,23 @@
 
   <section class="service-times">
     <div class="container">
-      <h2 class="section-title">SERVICE TIMES</h2>
-      <p class="section-subtitle">Join us this weekend</p>
+      <h2 class="section-title" data-content="service_times_title">SERVICE TIMES</h2>
+      <p class="section-subtitle" data-content="service_times_subtitle">Join us this weekend</p>
       <div class="services-grid">
         <div class="service-card">
-          <h3>SUNDAY MORNING</h3>
-          <p>ENGLISH SERVICE</p>
-          <span class="time">8:30 AM - 10:30 AM</span>
+          <h3 data-content="service1_title">SUNDAY MORNING</h3>
+          <p data-content="service1_name">ENGLISH SERVICE</p>
+          <span class="time" data-content="service1_time">8:30 AM - 10:30 AM</span>
         </div>
         <div class="service-card">
-          <h3>MAIN SERVICE</h3>
-          <p>SWAHILI SERVICE</p>
-          <span class="time">10:30 AM - 12:30PM</span>
+          <h3 data-content="service2_title">MAIN SERVICE</h3>
+          <p data-content="service2_name">SWAHILI SERVICE</p>
+          <span class="time" data-content="service2_time">10:30 AM - 12:30PM</span>
         </div>
         <div class="service-card">
-          <h3>WEDNESDAY</h3>
-          <p>MOTHERS' UNION FELLOWSHIP</p>
-          <span class="time">10:00 AM</span>
+          <h3 data-content="service3_title">WEDNESDAY</h3>
+          <p data-content="service3_name">MOTHERS' UNION FELLOWSHIP</p>
+          <span class="time" data-content="service3_time">10:00 AM</span>
         </div>
       </div>
     </div>
@@ -123,5 +123,6 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script src="js/content-loader.js"></script>
 </body>
 </html>

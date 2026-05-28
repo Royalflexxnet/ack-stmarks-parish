@@ -1,0 +1,4 @@
+node_modules/
+church.db
+church.db-wal
+church.db-shm

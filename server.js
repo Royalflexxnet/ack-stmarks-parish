@@ -34,6 +34,19 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/finance', financeRoutes);
 
+// Public events API
+app.get('/api/events', (req, res) => {
+  res.json(db.prepare('SELECT id, title, description, location, date, time FROM events ORDER BY date ASC, time ASC').all());
+});
+
+// Public content API
+app.get('/api/content/:page', (req, res) => {
+  const rows = db.prepare('SELECT field, content FROM page_content WHERE page = ?').all(req.params.page);
+  const result = {};
+  for (const r of rows) result[r.field] = r.content;
+  res.json(result);
+});
+
 // Portal pages
 app.get('/portal/register', (req, res) => res.sendFile(path.join(__dirname, 'portal', 'register.html')));
 app.get('/portal/login', (req, res) => res.sendFile(path.join(__dirname, 'portal', 'login.html')));

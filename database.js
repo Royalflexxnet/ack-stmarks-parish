@@ -56,6 +56,29 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    location TEXT DEFAULT '',
+    date TEXT NOT NULL,
+    time TEXT DEFAULT '',
+    created_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS page_content (
+    page TEXT NOT NULL,
+    field TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(page, field)
+  )
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS departments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -82,6 +105,63 @@ if (deptCount === 0) {
   for (const [name, desc] of departments) {
     insert.run(name, desc);
   }
+}
+
+// Seed default page content
+const contentCount = db.prepare('SELECT COUNT(*) AS c FROM page_content').get().c;
+if (contentCount === 0) {
+  const insertContent = db.prepare('INSERT OR IGNORE INTO page_content (page, field, content) VALUES (?, ?, ?)');
+  const homeFields = [
+    ['hero_accent','Welcome to ACK St. Mark\'s Parish - Malaa'],
+    ['hero_title','A Place to Belong, Grow, and Serve'],
+    ['hero_text','We are a community of faith dedicated to loving God, loving people, and making disciples of Jesus Christ. No matter where you are on your spiritual journey, you are welcome here.'],
+    ['hero_btn1_text','Register as Member'],['hero_btn1_link','portal/register'],
+    ['hero_btn2_text','Plan Your Visit'],['hero_btn2_link','about.html'],
+    ['welcome_title','You Are Welcome Here'],
+    ['welcome_text','<p>At ACK St. Mark\'s Parish - Malaa, we believe that church is more than a building — it\'s a family. Whether you\'re exploring faith for the first time or have walked with Christ for years, you\'ll find a place to belong.</p><p>Our heart is to see lives transformed by the love of Jesus. Through authentic worship, relevant teaching, and genuine community, we strive to create an environment where you can encounter God and grow in your faith.</p><p>Come as you are. You don\'t need to have it all together — none of us do. We\'re all on a journey together.</p>'],
+    ['welcome_btn_text','Get In Touch'],['welcome_btn_link','contact.html'],
+    ['service_times_title','SERVICE TIMES'],['service_times_subtitle','Join us this weekend'],
+    ['service1_title','SUNDAY MORNING'],['service1_name','ENGLISH SERVICE'],['service1_time','8:30 AM - 10:30 AM'],
+    ['service2_title','MAIN SERVICE'],['service2_name','SWAHILI SERVICE'],['service2_time','10:30 AM - 12:30PM'],
+    ['service3_title','WEDNESDAY'],['service3_name','MOTHERS\' UNION FELLOWSHIP'],['service3_time','10:00 AM'],
+  ];
+  for (const [f, c] of homeFields) insertContent.run('home', f, c);
+  const aboutFields = [
+    ['page_title','About Us'],['page_subtitle','Our story, mission, and the people who make ACK St. Mark\'s Parish - Malaa what it is'],
+    ['vision_title','VISION'],['vision_text','To strengthen Anglican Church built on the foundation of the apostolic faith in Jesus Christ with the ability to equip all God\'s people to face the challenges of the new millennium.'],
+    ['mission_title','MISSION'],['mission_text','To bring all people into a living relationship with God through Jesus Christ, through preaching, teaching, healing and social transformation and enabling them to grow in faith and live life in its fullness.'],
+    ['pillars_title','Our Pillars'],
+    ['pillar1','<strong>Scripture:</strong> The primary source of faith and the ultimate standard for doctrine.'],
+    ['pillar2','<strong>Tradition:</strong> The living heritage of the church, including liturgy, creeds, and historical practices.'],
+    ['pillar3','<strong>Reason:</strong> The use of intellect and experience, including insights from science and the arts, to interpret faith in contemporary contexts.'],
+  ];
+  for (const [f, c] of aboutFields) insertContent.run('about', f, c);
+  const contactFields = [
+    ['page_title','Contact Us'],['page_subtitle','We\'d love to hear from you — get in touch or stop by'],
+    ['contact_intro','Have a question, prayer request, or just want to say hello? We\'d love to connect with you!'],
+    ['contact_location','Malaa, Machakos, Kenya'],['contact_email','stmarks.malaa@gmail.com'],
+    ['contact_phone','+254 712 345 678'],['contact_hours','Mon–Fri: 9:00 AM – 5:00 PM'],
+  ];
+  for (const [f, c] of contactFields) insertContent.run('contact', f, c);
+  const eventsFields = [
+    ['page_title','Events'],['page_subtitle','Stay connected with everything happening at ACK St. Mark\'s Parish - Malaa'],
+    ['section_title','Upcoming Events'],['section_subtitle','There\'s always something happening — join us'],
+  ];
+  for (const [f, c] of eventsFields) insertContent.run('events', f, c);
+}
+
+// Seed default events
+const eventCount = db.prepare('SELECT COUNT(*) AS c FROM events').get().c;
+if (eventCount === 0) {
+  const insert = db.prepare('INSERT INTO events (title, description, location, date, time, created_by) VALUES (?, ?, ?, ?, ?, ?)');
+  const events = [
+    ['Community BBQ & Fellowship', 'Join us for food, games, and great company! Bring the whole family for an afternoon of fun and connection.', 'Church Lawn', '2026-05-31', '12:00 PM - 3:00 PM', 1],
+    ['Summer Youth Retreat', 'An unforgettable weekend for students grades 6-12. Worship, teaching, and outdoor activities.', 'Camp Pine Valley', '2026-06-07', 'Fri 4 PM - Sun 2 PM', 1],
+    ['Women\'s Brunch', 'All women are invited for a morning of encouragement, delicious food, and meaningful connection.', 'Fellowship Hall', '2026-06-14', '10:00 AM - 12:00 PM', 1],
+    ['Father\'s Day Service', 'A special service honoring fathers and celebrating the impact of godly leadership in our families.', 'Main Sanctuary', '2026-06-21', '10:45 AM', 1],
+    ['Worship Night', 'An evening of extended worship, prayer, and seeking God together as a church family.', 'Main Sanctuary', '2026-06-28', '6:30 PM - 8:00 PM', 1],
+  ];
+  for (const e of events) insert.run(...e);
 }
 
 db.exec(`
