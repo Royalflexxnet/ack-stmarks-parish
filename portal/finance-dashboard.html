@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Portal — ACK St. Mark's Parish - Malaa</title>
+  <link rel="stylesheet" href="portal.css">
+  <style>
+    .tab-bar { display:flex; gap:0; background:var(--bg-alt); border-radius:12px; overflow:hidden; margin-bottom:2rem; }
+    .tab-bar button { flex:1; padding:1rem; border:none; background:transparent; font-size:0.9rem; font-weight:500; cursor:pointer; color:var(--text-light); transition:all 0.2s; }
+    .tab-bar button:hover { background:rgba(0,0,0,0.05); }
+    .tab-bar button.active { background:var(--primary); color:white; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+    .summary-card { background:white; padding:1.2rem; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center; }
+    .summary-card .value { font-size:1.6rem; font-weight:700; margin-top:0.3rem; }
+    .summary-card .label { font-size:0.8rem; color:var(--text-light); }
+    .summary-card.collection .value { color:#155724; }
+    .summary-card.income .value { color:#1a73e8; }
+    .summary-card.expense .value { color:#dc3545; }
+    .summary-card.balance .value { color:var(--primary); }
+    .inline-form { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:end; }
+    .inline-form .form-group { margin-bottom:0; }
+    .inline-form .btn { margin-bottom:0; }
+    .filter-row { display:flex; gap:1rem; flex-wrap:wrap; align-items:end; margin-bottom:1rem; }
+    .filter-row .form-group { margin-bottom:0; min-width:150px; }
+    .actions-cell { display:flex; gap:0.4rem; }
+    .actions-cell .btn { padding:0.3rem 0.7rem; font-size:0.75rem; white-space:nowrap; }
+    @media (max-width:600px) {
+      .tab-bar button { font-size:0.75rem; padding:0.7rem 0.5rem; }
+      .inline-form { flex-direction:column; }
+    }
+    .modal-overlay { display:none; }
+    @media print {
+      .budget-col, .budget-card { display:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="portal-header">
+    <div class="brand"><img src="../img/ACK%20MACHAKOS%20LOGO.png" alt="ACK Logo" style="height:30px;width:auto"> Finance Portal</div>
+    <div class="user-info">
+      <span id="displayName"></span>
+      <span id="displayRole" style="font-size:0.75rem;background:rgba(255,255,255,0.15);padding:0.2rem 0.6rem;border-radius:4px"></span>
+      <button class="logout-btn" onclick="openFinChangePwd()">Change Password</button>
+      <button class="logout-btn" onclick="financeLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="portal-container">
+    <div id="alert"></div>
+
+    <div class="tab-bar">
+      <button class="active" onclick="switchTab('collections')">Collections</button>
+      <button onclick="switchTab('income')">Income</button>
+      <button onclick="switchTab('expenditure')">Expenditure</button>
+      <button onclick="switchTab('reports')">Reports</button>
+      <button onclick="switchTab('development')">Development</button>
+      <button onclick="switchTab('pettycash')">Petty Cash</button>
+      <button id="tabUsersBtn" onclick="switchTab('users')" style="display:none">Users</button>
+      <a href="/" style="margin-left:auto;padding:1rem 1.5rem;text-decoration:none;font-weight:500;font-size:0.9rem;color:var(--accent);white-space:nowrap">&#8592; Site Home</a>
+    </div>
+
+    <!-- Collections Tab -->
+    <div id="tab-collections" class="tab-content active">
+      <div id="colFormSection">
+        <div class="card">
+          <div style="display:flex;gap:1rem;align-items:end;flex-wrap:wrap">
+            <div class="form-group" style="margin-bottom:0;min-width:200px">
+              <label>Sunday Date</label>
+              <input type="date" id="colDate" style="font-size:1.1rem;font-weight:600">
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div id="collectionFormContainer"><p class="empty-state">Loading categories...</p></div>
+          <div style="margin-top:1rem;display:flex;gap:0.75rem">
+            <button class="btn btn-primary" onclick="saveSundayCollection()" style="font-size:1rem;padding:0.8rem 2rem">&#10003; Publish Collections</button>
+            <button class="btn btn-secondary" onclick="clearCollectionForm()">Clear</button>
+          </div>
+        </div>
+      </div>
+      <div class="summary-grid" id="colSummary"></div>
+      <div class="card"><h2>Collections History</h2><div id="colList"><p class="empty-state">Loading...</p></div></div>
+    </div>
+
+    <!-- Income Tab -->
+    <div id="tab-income" class="tab-content">
+      <div class="card">
+        <h2>Income Report</h2>
+        <div class="filter-row">
+          <div class="form-group"><label>From</label><input type="date" id="incReportStart"></div>
+          <div class="form-group"><label>To</label><input type="date" id="incReportEnd"></div>
+          <button class="btn btn-primary btn-sm" onclick="loadIncomeSummary()">Filter</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetIncomeDates()">Reset</button>
+        </div>
+        <div class="summary-grid" id="incSummary"></div>
+      </div>
+      <div class="card">
+        <h2>Sunday Collections Summary</h2>
+        <div id="collectionSummaryTable"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
+
+    <!-- Expenditure Tab -->
+    <div id="tab-expenditure" class="tab-content">
+      <div id="expAddForms">
+        <div class="card">
+          <h2>Other Expense</h2>
+          <form onsubmit="saveOtherExpense(event)" class="inline-form">
+            <div class="form-group" style="min-width:140px"><label>Date</label><input type="date" id="otherExpDate"></div>
+            <div class="form-group" style="flex:1;min-width:180px"><label>Description</label><input type="text" id="otherExpDesc" placeholder="e.g. Emergency repairs" required></div>
+            <div class="form-group" style="min-width:140px"><label>Cheque No.</label><input type="text" id="otherExpCheque" placeholder="e.g. 001234"></div>
+            <div class="form-group" style="min-width:120px"><label>Amount (KES)</label><input type="number" id="otherExpAmount" min="1" required placeholder="0.00"></div>
+            <button type="submit" class="btn btn-primary" style="margin-bottom:0">Add Expense</button>
+          </form>
+        </div>
+        <div class="card">
+          <div id="expenditureFormContainer"><p class="empty-state">Loading expenditure items...</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Expenditure Summary</h2>
+        <div class="filter-row">
+          <div class="form-group"><label>From</label><input type="date" id="expSummaryStart"></div>
+          <div class="form-group"><label>To</label><input type="date" id="expSummaryEnd"></div>
+          <button class="btn btn-primary btn-sm" onclick="loadExpenditureSummary()">Filter</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetExpSummaryDates()">Reset</button>
+        </div>
+        <div class="summary-grid" id="expSummaryCards"></div>
+        <div id="expSummaryTable"><p class="empty-state">Select dates and click Filter</p></div>
+      </div>
+      <div class="card"><h2>Expenditure History</h2><div id="expList"><p class="empty-state">Loading...</p></div></div>
+    </div>
+
+    <!-- Reports Tab -->
+    <div id="tab-reports" class="tab-content">
+      <div class="card">
+        <h2>Income & Expenditure Report</h2>
+        <div class="filter-row">
+          <div class="form-group"><label>From</label><input type="date" id="repStart"></div>
+          <div class="form-group"><label>To</label><input type="date" id="repEnd"></div>
+          <div class="form-group" style="min-width:120px"><label>Budget Increase %</label><input type="number" id="repBudgetPct" value="0" min="0" step="1" style="width:100%;padding:0.5rem;border:2px solid var(--bg-alt);border-radius:8px"></div>
+          <button class="btn btn-primary" onclick="loadReport()">Generate Report</button>
+          <button class="btn btn-secondary" onclick="resetReportDates()">Reset</button>
+        </div>
+      </div>
+      <div id="reportContent" style="display:none">
+        <div class="summary-grid" id="repSummary"></div>
+        <div class="card">
+          <div style="text-align:right;margin-bottom:1rem"><button class="btn btn-primary" onclick="window.print()">&#128196; Download PDF</button></div>
+          <div id="repBreakdown"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Development Tab -->
+    <div id="tab-development" class="tab-content">
+      <div class="summary-grid" id="devSummary"></div>
+      <div id="devAddForms">
+        <div class="card">
+          <h2>Add Income</h2>
+          <form onsubmit="addDevEntry('income', event)" class="inline-form">
+            <div class="form-group" style="min-width:140px"><label>Date</label><input type="date" class="devIncDate"></div>
+            <div class="form-group" style="flex:1;min-width:200px"><label>Description</label><input type="text" class="devIncDesc" placeholder="e.g. Donation, fundraiser" required></div>
+            <div class="form-group" style="min-width:120px"><label>Amount (KES)</label><input type="number" class="devIncAmount" min="1" required placeholder="0.00"></div>
+            <button type="submit" class="btn btn-primary" style="margin-bottom:0">Add Income</button>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Add Expenditure</h2>
+          <form onsubmit="addDevEntry('expense', event)" class="inline-form">
+            <div class="form-group" style="min-width:140px"><label>Date</label><input type="date" class="devExpDate"></div>
+            <div class="form-group" style="flex:1;min-width:200px"><label>Description</label><input type="text" class="devExpDesc" placeholder="e.g. Construction materials" required></div>
+            <div class="form-group" style="min-width:120px"><label>Amount (KES)</label><input type="number" class="devExpAmount" min="1" required placeholder="0.00"></div>
+            <button type="submit" class="btn btn-primary" style="margin-bottom:0">Add Expense</button>
+          </form>
+        </div>
+      </div>
+      <div class="card">
+        <div class="filter-row">
+          <div class="form-group"><label>From</label><input type="date" id="devReportStart"></div>
+          <div class="form-group"><label>To</label><input type="date" id="devReportEnd"></div>
+          <button class="btn btn-primary btn-sm" onclick="loadDevelopment()">Filter</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetDevDates()">Reset</button>
+          <button class="btn btn-primary btn-sm" onclick="printDevelopment()" style="margin-left:auto">&#128196; Download PDF</button>
+        </div>
+      </div>
+      <div class="card"><h2>Development Entries</h2><div id="devList"><p class="empty-state">Loading...</p></div></div>
+    </div>
+
+    <!-- Petty Cash Tab -->
+    <div id="tab-pettycash" class="tab-content">
+      <div class="summary-grid" id="pcChequeInfo"></div>
+      <div id="pcManageSection">
+        <div id="pcNoCheque" style="display:none">
+          <div class="card">
+            <h2>Open New Cheque</h2>
+            <form onsubmit="openPettyCashCheque(event)" class="inline-form">
+              <div class="form-group" style="min-width:200px"><label>Amount (KES)</label><input type="number" id="newChequeAmount" min="1" required placeholder="e.g. 20000"></div>
+              <button type="submit" class="btn btn-primary" style="margin-bottom:0">Open Cheque</button>
+            </form>
+          </div>
+        </div>
+        <div id="pcFormWrap">
+          <div class="card">
+            <h2>Add Petty Cash Entry</h2>
+            <form onsubmit="addPettyCash(event)" class="inline-form">
+              <div class="form-group" style="min-width:140px"><label>Date</label><input type="date" id="pcDate"></div>
+              <div class="form-group" style="flex:1;min-width:200px"><label>Item</label>
+                <select id="pcItem" onchange="togglePcOther()" style="width:100%;padding:0.5rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem">
+                  <option value="">-- Select --</option>
+                </select>
+                <input type="text" id="pcOtherDesc" placeholder="Enter custom description" style="display:none;width:100%;margin-top:0.4rem;padding:0.5rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem">
+              </div>
+              <div class="form-group" style="min-width:120px"><label>Amount (KES)</label><input type="number" id="pcAmount" min="1" required placeholder="0.00"></div>
+              <button type="submit" class="btn btn-primary" style="margin-bottom:0">Add Entry</button>
+            </form>
+          </div>
+        <div class="card">
+          <h2>Petty Cash Report</h2>
+          <div class="filter-row">
+            <div class="form-group"><label>From</label><input type="date" id="pcReportStart"></div>
+            <div class="form-group"><label>To</label><input type="date" id="pcReportEnd"></div>
+            <button class="btn btn-primary btn-sm" onclick="loadPettyCash()">Filter</button>
+            <button class="btn btn-secondary btn-sm" onclick="resetPettyCashDates()">Reset</button>
+          </div>
+          <div class="summary-grid" id="pcSummary"></div>
+        </div>
+        <div class="card" style="padding-bottom:0.5rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+            <h2 style="margin:0">Petty Cash History</h2>
+            <button class="btn btn-primary btn-sm" onclick="printPettyCash()">&#128196; Download PDF</button>
+          </div>
+        </div>
+        <div class="card"><div id="pcList"><p class="empty-state">Loading...</p></div></div>
+      </div>
+      <div class="card"><h2>All Cheques</h2><div id="chequesList"><p class="empty-state">Loading...</p></div></div>
+    </div>
+
+    <!-- Users Tab -->
+    <div id="tab-users" class="tab-content">
+      <div class="card">
+        <h2>Add Finance User</h2>
+        <form onsubmit="addFinanceUser(event)" class="inline-form">
+          <div class="form-group"><label>Username</label><input type="text" id="fuUsername" required></div>
+          <div class="form-group"><label>Full Name</label><input type="text" id="fuFullName" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="fuPassword" required minlength="4"></div>
+          <div class="form-group"><label>Role</label><select id="fuRole"><option value="finance_user">Finance User</option><option value="finance_admin">Finance Admin</option></select></div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label style="margin-bottom:0.3rem">Permissions</label>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
+              <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="fuPermEntries" checked> Manage Entries</label>
+              <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="fuPermPettyCash" checked> Manage Petty Cash</label>
+              <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="fuPermDevelopment" checked> Manage Development</label>
+              <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="fuPermUsers"> Manage Users</label>
+              <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="fuPermReports" checked> View Reports</label>
+            </div>
+            <label style="font-size:0.85rem;display:flex;align-items:center;gap:0.3rem;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--bg-alt)">
+              <input type="checkbox" id="fuReportsOnly" onchange="toggleReportsOnly()"> Show Reports Only (hides all other tabs)
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary" style="margin-bottom:0">Add User</button>
+        </form>
+      </div>
+      <div class="card"><h2>Finance Users</h2><div id="financeUsersList"><p class="empty-state">Loading...</p></div></div>
+      <div class="card" id="clearDataCard" style="border:2px solid #dc3545;display:none">
+        <h2 style="color:#dc3545">Danger Zone</h2>
+        <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:0.8rem">Delete all finance data (collections, income, expenses, contributions, petty cash, development) to start fresh. This cannot be undone.</p>
+        <button class="btn btn-danger" onclick="clearAllFinanceData()">Delete All Finance Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Entry Modal -->
+  <div class="modal-overlay" id="finEditEntryModal" onclick="if(event.target===this)closeModal('finEditEntryModal')">
+    <div class="modal" style="max-width:500px">
+      <div class="modal-header"><h2>Edit Entry</h2><button class="modal-close" onclick="closeModal('finEditEntryModal')">&times;</button></div>
+      <div class="modal-body" style="padding:1.5rem">
+        <input type="hidden" id="editEntryId">
+        <div class="form-group"><label>Date</label><input type="date" id="editEntryDate" required></div>
+        <div class="form-group"><label>Category</label><input type="text" id="editEntryCategory" placeholder="e.g. Tithe, Offering"></div>
+        <div class="form-group"><label>Description</label><input type="text" id="editEntryDesc" placeholder="Description"></div>
+        <div class="form-group"><label>Amount (KES)</label><input type="number" id="editEntryAmount" min="0" step="0.5" required placeholder="0.00"></div>
+        <button class="btn btn-primary" onclick="saveEditEntry()" style="width:100%;margin-top:0.5rem">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div class="modal-overlay" id="finChangePwdModal" onclick="if(event.target===this)closeModal('finChangePwdModal')">
+    <div class="modal" style="max-width:400px">
+      <div class="modal-header"><h2>Change Password</h2><button class="modal-close" onclick="closeModal('finChangePwdModal')">&times;</button></div>
+      <div class="modal-body" style="padding:1.5rem">
+        <div class="form-group"><label>Current Password</label><input type="password" id="finCurPwd" required></div>
+        <div class="form-group"><label>New Password</label><input type="password" id="finNewPwd" required minlength="4"></div>
+        <div class="form-group"><label>Confirm New Password</label><input type="password" id="finConfirmPwd" required minlength="4"></div>
+        <button class="btn btn-primary" onclick="finChangePwd()" style="width:100%;margin-top:0.5rem">Update Password</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const finUser = (() => { try { return JSON.parse(localStorage.getItem('finance_user')); } catch { return null; } })();
+    function getToken() { return localStorage.getItem('finance_token'); }
+    function requireAuth() { if (!getToken()) window.location.href = 'finance-login'; }
+    function financeLogout() { localStorage.removeItem('finance_token'); localStorage.removeItem('finance_user'); window.location.href = 'finance-login'; }
+
+    function openFinChangePwd() {
+      document.getElementById('finCurPwd').value = '';
+      document.getElementById('finNewPwd').value = '';
+      document.getElementById('finConfirmPwd').value = '';
+      document.getElementById('finChangePwdModal').style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    async function finChangePwd() {
+      const cur = document.getElementById('finCurPwd').value;
+      const np = document.getElementById('finNewPwd').value;
+      const conf = document.getElementById('finConfirmPwd').value;
+      if (!cur || !np || !conf) { showAlert('Fill all fields', 'error'); return; }
+      if (np !== conf) { showAlert('Passwords do not match', 'error'); return; }
+      if (np.length < 4) { showAlert('Password must be at least 4 characters', 'error'); return; }
+      try {
+        await apiFetch('/password', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_password: cur, new_password: np })
+        });
+        showAlert('Password updated successfully', 'success');
+        closeModal('finChangePwdModal');
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function apiFetch(path, options = {}) {
+      const token = getToken();
+      const headers = { ...options.headers };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch('/api/finance' + path, { ...options, headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    function showAlert(msg, type) { const el = document.getElementById('alert'); if (el) el.innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>'; }
+    function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    function formatCurrency(n) { return 'KES ' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0 }); }
+    function formatDate(d) { if (!d) return '—'; const p = d.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+    function todayStr() { return new Date().toISOString().split('T')[0]; }
+    function yearStartStr() { return new Date().getFullYear() + '-01-01'; }
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      const btn = document.querySelector('.tab-bar button[onclick*="' + name + '"]');
+      if (btn) btn.classList.add('active');
+      if (name === 'users') loadFinanceUsers();
+    }
+
+    requireAuth();
+    if (finUser) {
+      document.getElementById('displayName').textContent = finUser.full_name;
+      document.getElementById('displayRole').textContent = finUser.role.replace('_', ' ');
+      const isAdmin = finUser.role === 'finance_superadmin' || finUser.role === 'finance_admin';
+      if (isAdmin || finUser.can_manage_users) {
+        document.getElementById('tabUsersBtn').style.display = '';
+      }
+      if (!isAdmin && !finUser.can_manage_entries) {
+        const cf = document.getElementById('colFormSection');
+        if (cf) cf.style.display = 'none';
+        const ef = document.getElementById('expAddForms');
+        if (ef) ef.style.display = 'none';
+      }
+      if (!isAdmin && !finUser.can_manage_development) {
+        const df = document.getElementById('devAddForms');
+        if (df) df.style.display = 'none';
+      }
+      if (!isAdmin && !finUser.can_manage_petty_cash) {
+        const pm = document.getElementById('pcManageSection');
+        if (pm) pm.style.display = 'none';
+      }
+    }
+
+    async function loadEntries(type, listId, summaryId) {
+      try {
+        const sd = yearStartStr();
+        const ed = todayStr();
+        const entries = await apiFetch('/entries?type=' + type + '&start_date=' + sd + '&end_date=' + ed);
+        const total = entries.reduce((s, e) => s + e.amount, 0);
+        if (summaryId) {
+          document.getElementById(summaryId).innerHTML =
+            '<div class="summary-card ' + type + '"><div class="label">Total Expenditure (Year to Date)</div><div class="value">' + formatCurrency(total) + '</div></div>';
+        }
+        const isSuper = finUser && finUser.role === 'finance_superadmin';
+        document.getElementById(listId).innerHTML = entries.length === 0 ? '<p class="empty-state">No entries this year</p>' :
+          '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Item</th><th>Cheque No.</th><th>Amount</th><th>Added By</th><th style="width:40px">Edit</th>' + (isSuper ? '<th>Actions</th>' : '') + '</tr></thead><tbody>' +
+          entries.map(e => '<tr>' +
+            '<td>' + formatDate(e.entry_date) + '</td>' +
+            '<td>' + escHtml(e.description || '—') + '</td>' +
+            '<td>' + escHtml(e.cheque_no || '—') + '</td>' +
+            '<td>' + formatCurrency(e.amount) + '</td>' +
+            '<td>' + escHtml(e.created_by_name || '—') + '</td>' +
+            '<td style="text-align:center;font-size:0.75rem;color:var(--text-light)">' + (e.edited ? '&#9998;' : '—') + '</td>' +
+            (isSuper ? '<td><div class="actions-cell">' +
+              '<button class="btn btn-sm btn-primary" onclick="openEditEntry(' + e.id + ')">Edit</button>' +
+              '<button class="btn btn-sm btn-danger" onclick="deleteEntry(' + e.id + ')">Del</button>' +
+              '</div></td>' : '') +
+            '</tr>').join('') +
+          '</tbody></table></div>';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function loadIncomeSummary() {
+      try {
+        const sd = document.getElementById('incReportStart').value || yearStartStr();
+        const ed = document.getElementById('incReportEnd').value || todayStr();
+        const collections = await apiFetch('/entries?type=collection&start_date=' + sd + '&end_date=' + ed);
+        const totalCollections = collections.reduce((s, e) => s + e.amount, 0);
+
+        document.getElementById('incSummary').innerHTML = 
+          '<div class="summary-card income"><div class="label">Total Income (Year to Date)</div><div class="value">' + formatCurrency(totalCollections) + '</div></div>';
+
+        const byCat = {};
+        collections.forEach(e => { const k = e.category || 'Uncategorized'; byCat[k] = (byCat[k] || 0) + e.amount; });
+        const sorted = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+        const grandTotal = sorted.reduce((s, c) => s + c[1], 0);
+        document.getElementById('collectionSummaryTable').innerHTML = sorted.length === 0 ? '<p class="empty-state">No collections in this period</p>' :
+          '<div class="table-wrap"><table><thead><tr><th>Category</th><th>Total</th></tr></thead><tbody>' +
+          sorted.map(([cat, amt]) => '<tr><td>' + escHtml(cat) + '</td><td>' + formatCurrency(amt) + '</td></tr>').join('') +
+          '<tr style="font-weight:700;background:var(--bg-alt)"><td>Total Collections</td><td>' + formatCurrency(grandTotal) + '</td></tr>' +
+          '</tbody></table></div>';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function loadCollectionCategories() {
+      try {
+        const cats = await apiFetch('/collection-categories');
+        const container = document.getElementById('collectionFormContainer');
+        let html = '<div class="table-wrap"><table><thead><tr><th style="width:60%">Giving</th><th style="width:40%">Amount (KES)</th></tr></thead><tbody>';
+        cats.forEach(c => {
+          html += '<tr><td><strong>' + escHtml(c.name) + '</strong></td><td><input type="number" class="col-cat-input" data-category="' + escHtml(c.name) + '" min="0" step="0.5" placeholder="0.00" style="width:100%;padding:0.5rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.95rem" oninput="updateCollectionTotal()"></td></tr>';
+        });
+        html += '<tr style="font-weight:700;background:var(--bg-alt)"><td>TOTAL</td><td id="colTotalDisplay">KES 0</td></tr>';
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function updateCollectionTotal() {
+      const inputs = document.querySelectorAll('.col-cat-input');
+      let total = 0;
+      inputs.forEach(inp => { const v = parseFloat(inp.value); if (v > 0) total += v; });
+      document.getElementById('colTotalDisplay').textContent = formatCurrency(total);
+    }
+
+    async function saveSundayCollection() {
+      const date = document.getElementById('colDate').value;
+      if (!date) { showAlert('Please select a date', 'error'); return; }
+      const inputs = document.querySelectorAll('.col-cat-input');
+      const items = [];
+      let hasAmount = false;
+      inputs.forEach(inp => {
+        const val = parseFloat(inp.value);
+        if (val > 0) { hasAmount = true; items.push({ category: inp.dataset.category, amount: val }); }
+      });
+      if (!hasAmount) { showAlert('Enter at least one amount', 'error'); return; }
+      try {
+        await apiFetch('/entries/bulk', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'collection', entry_date: date, items })
+        });
+        showAlert('Sunday collection saved', 'success');
+        clearCollectionForm();
+        loadEntries('collection', 'colList', 'colSummary');
+        loadIncomeSummary();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function clearCollectionForm() {
+      document.querySelectorAll('.col-cat-input').forEach(inp => inp.value = '');
+    }
+
+    async function loadExpenditureItems() {
+      try {
+        const items = await apiFetch('/expenditure-items');
+        const container = document.getElementById('expenditureFormContainer');
+        let html = '<div class="table-wrap"><table><thead><tr><th style="width:28%">Expenditure Item</th><th style="width:18%">Date</th><th style="width:18%">Cheque No.</th><th style="width:18%">Amount (KES)</th><th style="width:18%"></th></tr></thead><tbody>';
+        items.forEach(item => {
+          html += '<tr id="expRow-' + item.id + '">' +
+            '<td><strong>' + escHtml(item.name) + '</strong></td>' +
+            '<td><input type="date" id="expDate-' + item.id + '" style="width:100%;padding:0.5rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem"></td>' +
+            '<td><input type="text" id="expCheque-' + item.id + '" placeholder="e.g. 001234" style="width:100%;padding:0.5rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem"></td>' +
+            '<td><input type="number" id="expAmount-' + item.id + '" min="0" step="0.5" placeholder="0.00" style="width:100%;padding:0.5rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.95rem"></td>' +
+            '<td><button class="btn btn-primary btn-sm" onclick="saveSingleExpense(' + item.id + ')" style="white-space:nowrap;font-size:0.8rem">Save</button></td>' +
+            '</tr>';
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+        const td = todayStr();
+        items.forEach(item => {
+          const el = document.getElementById('expDate-' + item.id);
+          if (el) el.value = td;
+        });
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function saveSingleExpense(id) {
+      const date = document.getElementById('expDate-' + id).value;
+      const amount = parseFloat(document.getElementById('expAmount-' + id).value);
+      const cheque = document.getElementById('expCheque-' + id).value;
+      const name = document.querySelector('#expRow-' + id + ' td:first-child strong').textContent;
+      if (!date) { showAlert('Please select a date', 'error'); return; }
+      if (!amount || amount <= 0) { showAlert('Enter an amount greater than 0', 'error'); return; }
+      try {
+        await apiFetch('/entries', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'expense', description: name, amount, entry_date: date, cheque_no: cheque || '' })
+        });
+        showAlert(name + ' saved', 'success');
+        document.getElementById('expDate-' + id).value = todayStr();
+        document.getElementById('expAmount-' + id).value = '';
+        document.getElementById('expCheque-' + id).value = '';
+        loadEntries('expense', 'expList', '');
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function saveOtherExpense(e) {
+      e.preventDefault();
+      const date = document.getElementById('otherExpDate').value;
+      const desc = document.getElementById('otherExpDesc').value;
+      const cheque = document.getElementById('otherExpCheque').value;
+      const amount = parseFloat(document.getElementById('otherExpAmount').value);
+      if (!date || !desc || !amount) { showAlert('Date, description, and amount are required', 'error'); return; }
+      try {
+        await apiFetch('/entries', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'expense', description: desc, amount, entry_date: date, cheque_no: cheque || '' })
+        });
+        showAlert(desc + ' saved', 'success');
+        document.getElementById('otherExpDate').value = todayStr();
+        document.getElementById('otherExpDesc').value = '';
+        document.getElementById('otherExpCheque').value = '';
+        document.getElementById('otherExpAmount').value = '';
+        loadEntries('expense', 'expList', '');
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function loadExpenditureSummary() {
+      try {
+        const sd = document.getElementById('expSummaryStart').value || yearStartStr();
+        const ed = document.getElementById('expSummaryEnd').value || todayStr();
+        const entries = await apiFetch('/entries?type=expense&start_date=' + sd + '&end_date=' + ed);
+        const total = entries.reduce((s, e) => s + e.amount, 0);
+
+        document.getElementById('expSummaryCards').innerHTML =
+          '<div class="summary-card expense"><div class="label">Total Expenditure</div><div class="value">' + formatCurrency(total) + '</div></div>';
+
+        const byItem = {};
+        entries.forEach(e => { const k = e.description || 'Uncategorized'; byItem[k] = (byItem[k] || 0) + e.amount; });
+        const sorted = Object.entries(byItem).sort((a, b) => b[1] - a[1]);
+        const grandTotal = sorted.reduce((s, c) => s + c[1], 0);
+        document.getElementById('expSummaryTable').innerHTML = sorted.length === 0 ? '<p class="empty-state">No expenses in this period</p>' :
+          '<div class="table-wrap"><table><thead><tr><th>Item</th><th>Total</th></tr></thead><tbody>' +
+          sorted.map(([item, amt]) => '<tr><td>' + escHtml(item) + '</td><td>' + formatCurrency(amt) + '</td></tr>').join('') +
+          '<tr style="font-weight:700;background:var(--bg-alt)"><td>Total Expenditure</td><td>' + formatCurrency(grandTotal) + '</td></tr>' +
+          '</tbody></table></div>';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function resetExpSummaryDates() {
+      document.getElementById('expSummaryStart').value = yearStartStr();
+      document.getElementById('expSummaryEnd').value = todayStr();
+      loadExpenditureSummary();
+    }
+
+    // Users
+    async function loadFinanceUsers() {
+      const el = document.getElementById('financeUsersList');
+      if (!el) return;
+      el.innerHTML = '<p class="empty-state">Loading users...</p>';
+      try {
+        const users = await apiFetch('/users');
+        if (!users || users.length === 0) {
+          el.innerHTML = '<p class="empty-state">No finance users found</p>';
+          return;
+        }
+        el.innerHTML =
+          '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Permissions</th><th>Status</th><th>Actions</th></tr></thead><tbody>' +
+          users.map(u => '<tr><td><strong>' + escHtml(u.full_name) + '</strong></td><td>' + escHtml(u.username) + '</td><td>' + escHtml(u.role.replace('_', ' ')) + '</td><td style="font-size:0.75rem">' +
+            (u.can_manage_entries ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Entries</span> ' : '') +
+            (u.can_manage_petty_cash ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Petty Cash</span> ' : '') +
+            (u.can_manage_development ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Development</span> ' : '') +
+            (u.can_manage_users ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Users</span> ' : '') +
+            (u.can_view_reports ? '<span class="badge-active" style="font-size:0.7rem;margin:1px">Reports</span> ' : '') +
+            '</td><td>' + (u.active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>') + '</td><td><div class="actions-cell"><button class="btn btn-sm ' + (u.active ? 'btn-danger' : 'btn-primary') + '" onclick="toggleFinanceUser(' + u.id + ')">' + (u.active ? 'Deactivate' : 'Activate') + '</button><button class="btn btn-sm btn-danger" onclick="deleteFinanceUser(' + u.id + ')">Delete</button></div></td></tr>').join('') +
+          '</tbody></table></div>';
+      } catch (err) {
+        el.innerHTML = '<p class="empty-state" style="color:#dc3545">Error: ' + escHtml(err.message) + '</p>';
+        showAlert(err.message, 'error');
+      }
+    }
+
+    function toggleReportsOnly() {
+      const ro = document.getElementById('fuReportsOnly').checked;
+      document.getElementById('fuPermEntries').disabled = ro;
+      document.getElementById('fuPermPettyCash').disabled = ro;
+      document.getElementById('fuPermDevelopment').disabled = ro;
+      document.getElementById('fuPermUsers').disabled = ro;
+      if (ro) {
+        document.getElementById('fuPermEntries').checked = false;
+        document.getElementById('fuPermPettyCash').checked = false;
+        document.getElementById('fuPermDevelopment').checked = false;
+        document.getElementById('fuPermUsers').checked = false;
+        document.getElementById('fuPermReports').checked = true;
+      }
+    }
+
+    async function addFinanceUser(e) {
+      e.preventDefault();
+      try {
+        await apiFetch('/users', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('fuUsername').value.trim(),
+            full_name: document.getElementById('fuFullName').value,
+            password: document.getElementById('fuPassword').value,
+            role: document.getElementById('fuRole').value,
+            can_manage_entries: document.getElementById('fuPermEntries').checked ? 1 : 0,
+            can_manage_petty_cash: document.getElementById('fuPermPettyCash').checked ? 1 : 0,
+            can_manage_development: document.getElementById('fuPermDevelopment').checked ? 1 : 0,
+            can_manage_users: document.getElementById('fuPermUsers').checked ? 1 : 0,
+            can_view_reports: document.getElementById('fuPermReports').checked ? 1 : 0
+          })
+        });
+        showAlert('Finance user added', 'success');
+        document.getElementById('fuUsername').value = '';
+        document.getElementById('fuFullName').value = '';
+        document.getElementById('fuPassword').value = '';
+        loadFinanceUsers();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function toggleFinanceUser(id) {
+      try { await apiFetch('/users/' + id + '/toggle', { method: 'PATCH' }); loadFinanceUsers(); } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function deleteFinanceUser(id) {
+      if (!confirm('Delete this finance user permanently?')) return;
+      try { await apiFetch('/users/' + id, { method: 'DELETE' }); showAlert('User deleted', 'success'); loadFinanceUsers(); } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    // Entry edit/delete
+    async function openEditEntry(id) {
+      try {
+        const entries = await apiFetch('/entries');
+        const entry = entries.find(e => e.id === id);
+        if (!entry) { showAlert('Entry not found', 'error'); return; }
+        document.getElementById('editEntryId').value = entry.id;
+        document.getElementById('editEntryDate').value = entry.entry_date;
+        document.getElementById('editEntryCategory').value = entry.category || '';
+        document.getElementById('editEntryDesc').value = entry.description || '';
+        document.getElementById('editEntryAmount').value = entry.amount;
+        document.getElementById('finEditEntryModal').style.display = 'flex';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function saveEditEntry() {
+      const id = document.getElementById('editEntryId').value;
+      const body = {
+        entry_date: document.getElementById('editEntryDate').value,
+        category: document.getElementById('editEntryCategory').value,
+        description: document.getElementById('editEntryDesc').value,
+        amount: parseFloat(document.getElementById('editEntryAmount').value)
+      };
+      if (!body.entry_date || !body.amount) { showAlert('Date and amount are required', 'error'); return; }
+      try {
+        await apiFetch('/entries/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        showAlert('Entry updated', 'success');
+        closeModal('finEditEntryModal');
+        loadEntries('collection', 'colList', 'colSummary');
+        loadEntries('expense', 'expList', '');
+        loadIncomeSummary();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function deleteEntry(id) {
+      if (!confirm('Delete this entry permanently?')) return;
+      try {
+        await apiFetch('/entries/' + id, { method: 'DELETE' });
+        showAlert('Entry deleted', 'success');
+        loadEntries('collection', 'colList', 'colSummary');
+        loadEntries('expense', 'expList', '');
+        loadIncomeSummary();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function resetIncomeDates() {
+      document.getElementById('incReportStart').value = yearStartStr();
+      document.getElementById('incReportEnd').value = todayStr();
+      loadIncomeSummary();
+    }
+
+    function resetReportDates() {
+      document.getElementById('repStart').value = yearStartStr();
+      document.getElementById('repEnd').value = todayStr();
+      loadReport();
+    }
+
+    async function loadReport() {
+      try {
+        const sd = document.getElementById('repStart').value || yearStartStr();
+        const ed = document.getElementById('repEnd').value || todayStr();
+        const pct = parseFloat(document.getElementById('repBudgetPct').value) || 0;
+        const mult = 1 + pct / 100;
+        const [collections, expenses] = await Promise.all([
+          apiFetch('/entries?type=collection&start_date=' + sd + '&end_date=' + ed),
+          apiFetch('/entries?type=expense&start_date=' + sd + '&end_date=' + ed)
+        ]);
+        const totalColl = collections.reduce((s, e) => s + e.amount, 0);
+        const totalExp = expenses.reduce((s, e) => s + e.amount, 0);
+        const balance = totalColl - totalExp;
+        const budgetColl = totalColl * mult;
+        const budgetExp = totalExp * mult;
+
+        document.getElementById('repSummary').innerHTML =
+          '<div class="summary-card income"><div class="label">Total Income (Actual)</div><div class="value">' + formatCurrency(totalColl) + '</div></div>' +
+          '<div class="summary-card income budget-card"><div class="label">Income Budget (' + pct + '% increase)</div><div class="value">' + formatCurrency(budgetColl) + '</div></div>' +
+          '<div class="summary-card expense"><div class="label">Total Expenditure (Actual)</div><div class="value">' + formatCurrency(totalExp) + '</div></div>' +
+          '<div class="summary-card expense budget-card"><div class="label">Expenditure Budget (' + pct + '% increase)</div><div class="value">' + formatCurrency(budgetExp) + '</div></div>' +
+          '<div class="summary-card balance"><div class="label">Actual Balance</div><div class="value">' + formatCurrency(balance) + '</div></div>' +
+          '<div class="summary-card balance budget-card"><div class="label">Budget Balance</div><div class="value">' + formatCurrency(budgetColl - budgetExp) + '</div></div>';
+
+        const byCat = {};
+        collections.forEach(e => { const k = e.category || 'Uncategorized'; byCat[k] = (byCat[k] || 0) + e.amount; });
+        const sortedColl = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+        const byDesc = {};
+        expenses.forEach(e => { const k = e.description || 'Other'; byDesc[k] = (byDesc[k] || 0) + e.amount; });
+        const sortedExp = Object.entries(byDesc).sort((a, b) => b[1] - a[1]);
+
+        const showBudget = pct > 0;
+        const fmtColl = sortedColl.map(([cat, amt]) => '<tr><td>' + escHtml(cat) + '</td><td>' + formatCurrency(amt) + '</td>' + (showBudget ? '<td class="budget-col">' + formatCurrency(amt * mult) + '</td>' : '') + '</tr>').join('');
+        const fmtExp = sortedExp.map(([item, amt]) => '<tr><td>' + escHtml(item) + '</td><td>' + formatCurrency(amt) + '</td>' + (showBudget ? '<td class="budget-col">' + formatCurrency(amt * mult) + '</td>' : '') + '</tr>').join('');
+
+        document.getElementById('repBreakdown').innerHTML =
+          '<h3 style="margin:0 0 0.5rem;color:#1a73e8;border-bottom:1px solid #ddd;padding-bottom:0.3rem">Sunday Collections</h3>' +
+          (sortedColl.length === 0 ? '<p class="empty-state">No collections in this period.</p>' :
+            '<div class="table-wrap"><table><thead><tr><th>Category</th><th>Actual</th>' + (showBudget ? '<th class="budget-col">Budget</th>' : '') + '</tr></thead><tbody>' + fmtColl +
+            '<tr style="font-weight:700;background:var(--bg-alt)"><td>Total Income</td><td>' + formatCurrency(totalColl) + '</td>' + (showBudget ? '<td class="budget-col">' + formatCurrency(budgetColl) + '</td>' : '') + '</tr></tbody></table></div>') +
+          '<h3 style="margin:1rem 0 0.5rem;color:#dc3545;border-bottom:1px solid #ddd;padding-bottom:0.3rem">Expenditure</h3>' +
+          (sortedExp.length === 0 ? '<p class="empty-state">No expenses in this period.</p>' :
+            '<div class="table-wrap"><table><thead><tr><th>Item</th><th>Actual</th>' + (showBudget ? '<th class="budget-col">Budget</th>' : '') + '</tr></thead><tbody>' + fmtExp +
+            '<tr style="font-weight:700;background:var(--bg-alt)"><td>Total Expenditure</td><td>' + formatCurrency(totalExp) + '</td>' + (showBudget ? '<td class="budget-col">' + formatCurrency(budgetExp) + '</td>' : '') + '</tr></tbody></table></div>');
+
+        document.getElementById('reportContent').style.display = 'block';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    // Development
+    async function addDevEntry(type, e) {
+      e.preventDefault();
+      const cls = type === 'income' ? 'devInc' : 'devExp';
+      const date = document.querySelector('.' + cls + 'Date').value;
+      const desc = document.querySelector('.' + cls + 'Desc').value;
+      const amount = parseFloat(document.querySelector('.' + cls + 'Amount').value);
+      if (!date || !desc || !amount) { showAlert('Fill all fields', 'error'); return; }
+      try {
+        await apiFetch('/development', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, description: desc, amount, entry_date: date })
+        });
+        showAlert(desc + ' added', 'success');
+        document.querySelector('.' + cls + 'Date').value = todayStr();
+        document.querySelector('.' + cls + 'Desc').value = '';
+        document.querySelector('.' + cls + 'Amount').value = '';
+        loadDevelopment();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function loadDevelopment() {
+      try {
+        const sd = document.getElementById('devReportStart').value || yearStartStr();
+        const ed = document.getElementById('devReportEnd').value || todayStr();
+        const entries = await apiFetch('/development?start_date=' + sd + '&end_date=' + ed);
+        const totalInc = entries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+        const totalExp = entries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+        document.getElementById('devSummary').innerHTML =
+          '<div class="summary-card income"><div class="label">Total Income</div><div class="value">' + formatCurrency(totalInc) + '</div></div>' +
+          '<div class="summary-card expense"><div class="label">Total Expenditure</div><div class="value">' + formatCurrency(totalExp) + '</div></div>' +
+          '<div class="summary-card balance"><div class="label">Balance</div><div class="value">' + formatCurrency(totalInc - totalExp) + '</div></div>';
+        document.getElementById('devList').innerHTML = entries.length === 0 ? '<p class="empty-state">No entries in this period</p>' :
+          '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th><th>Added By</th><th>Actions</th></tr></thead><tbody>' +
+          entries.map(e => '<tr>' +
+            '<td>' + formatDate(e.entry_date) + '</td>' +
+            '<td>' + (e.type === 'income' ? '<span class="badge-active">Income</span>' : '<span class="badge-inactive">Expense</span>') + '</td>' +
+            '<td>' + escHtml(e.description) + '</td>' +
+            '<td>' + formatCurrency(e.amount) + '</td>' +
+            '<td>' + escHtml(e.created_by_name || '—') + '</td>' +
+            '<td><div class="actions-cell">' +
+            (finUser && finUser.can_manage_development ? '<button class="btn btn-sm btn-danger" onclick="deleteDevEntry(' + e.id + ')">Delete</button>' : '') +
+            '</div></td></tr>').join('') +
+          '</tbody></table></div>';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function deleteDevEntry(id) {
+      if (!confirm('Delete this entry?')) return;
+      try { await apiFetch('/development/' + id, { method: 'DELETE' }); loadDevelopment(); } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function resetDevDates() {
+      document.getElementById('devReportStart').value = yearStartStr();
+      document.getElementById('devReportEnd').value = todayStr();
+      loadDevelopment();
+    }
+
+    function printDevelopment() {
+      const content = document.getElementById('devList').innerHTML;
+      const sd = document.getElementById('devReportStart').value || yearStartStr();
+      const ed = document.getElementById('devReportEnd').value || todayStr();
+      const ds = sd.split('-').reverse().join('/');
+      const de = ed.split('-').reverse().join('/');
+      const totalInc = [...document.querySelectorAll('#devSummary .income .value')].map(el => el.textContent);
+      const w = window.open('', '', 'width=800,height=600');
+      w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Development Report</title><style>' +
+        '*{box-sizing:border-box;margin:0;padding:0}body{font-family:Segoe UI,sans-serif;padding:2rem;color:#333}' +
+        '.header{text-align:center;margin-bottom:2rem;padding-bottom:1rem;border-bottom:3px double #1a73e8}' +
+        '.header h1{font-size:1.3rem;color:#1a73e8}.header p{color:#666;font-size:0.9rem}' +
+        'table{width:100%;border-collapse:collapse;margin-bottom:1rem}' +
+        'th,td{padding:0.6rem 1rem;text-align:left;border-bottom:1px solid #eee;font-size:0.9rem}' +
+        'th{background:#f5f5f5;font-weight:600}' +
+        '.footer{text-align:center;margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;color:#999;font-size:0.8rem}' +
+        '.summary{display:flex;gap:1rem;justify-content:center;margin-bottom:1.5rem}' +
+        '.summary-box{padding:1rem 2rem;border-radius:8px;text-align:center}' +
+        '.summary-box.inc{background:#d4edda}.summary-box.exp{background:#fde8e8}.summary-box.bal{background:#e8f0fe}' +
+        '.summary-box .label{font-size:0.8rem;color:#666}.summary-box .value{font-size:1.5rem;font-weight:700}' +
+        '@media print{body{padding:1rem}}' +
+        '</style></head><body>' +
+        '<div class="header"><h1>ACK St. Mark\'s Parish - Malaa</h1><p>Development Report — ' + ds + ' to ' + de + '</p></div>' +
+        document.getElementById('devSummary').innerHTML.replace(/summary-card/g, 'summary-box').replace(/income/g, 'inc').replace(/expense/g, 'exp').replace(/balance/g, 'bal') +
+        content +
+        '<div class="footer"><p>Generated on ' + new Date().toLocaleDateString('en-GB') + '</p><p>ACK St. Mark\'s Parish - Malaa &copy; ' + new Date().getFullYear() + '</p></div>' +
+        '</body></html>');
+      w.document.close();
+      setTimeout(function() { w.print(); }, 500);
+    }
+
+    async function loadPettyCashItems() {
+      try {
+        const items = await apiFetch('/petty-cash-items');
+        const sel = document.getElementById('pcItem');
+        sel.innerHTML = '<option value="">-- Select --</option>';
+        items.forEach(item => {
+          sel.innerHTML += '<option value="' + escHtml(item.name) + '">' + escHtml(item.name) + '</option>';
+        });
+        sel.innerHTML += '<option value="__other__">Other (custom)...</option>';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function togglePcOther() {
+      const sel = document.getElementById('pcItem');
+      const other = document.getElementById('pcOtherDesc');
+      other.style.display = sel.value === '__other__' ? 'block' : 'none';
+    }
+
+    async function loadPettyCashChequeInfo() {
+      try {
+        const cheque = await apiFetch('/petty-cash/current');
+        const info = document.getElementById('pcChequeInfo');
+        const noCheque = document.getElementById('pcNoCheque');
+        const formWrap = document.getElementById('pcFormWrap');
+        if (!cheque) {
+          info.innerHTML = '';
+          noCheque.style.display = 'block';
+          formWrap.style.display = 'none';
+          return;
+        }
+        noCheque.style.display = 'none';
+        formWrap.style.display = 'block';
+        const canManagePc = finUser && finUser.can_manage_petty_cash;
+        info.innerHTML =
+          '<div class="summary-card income"><div class="label">Cheque Amount</div><div class="value">' + formatCurrency(cheque.amount) + '</div></div>' +
+          '<div class="summary-card balance"><div class="label">Remaining Balance</div><div class="value">' + formatCurrency(cheque.balance) + '</div></div>' +
+          '<div class="summary-card expense"><div class="label">Spent</div><div class="value">' + formatCurrency(cheque.amount - cheque.balance) + '</div></div>' +
+          (canManagePc ? '<div class="card" style="grid-column:1/-1;text-align:center;padding:0.5rem"><button class="btn btn-sm btn-danger" id="pcCloseBtn" onclick="closeCheque(' + cheque.id + ')">Close Current Cheque</button></div>' : '');
+        if (cheque.balance <= 0 && canManagePc) {
+          info.innerHTML += '<div class="card" style="grid-column:1/-1;text-align:center;padding:0.5rem;background:#fff3cd;border:1px solid #ffeeba;border-radius:8px">' +
+            'This cheque is fully spent. <a href="#" onclick="document.getElementById(\'pcCloseBtn\').click();return false">Close it</a> and open a new one below.</div>';
+        }
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function addPettyCash(e) {
+      e.preventDefault();
+      const date = document.getElementById('pcDate').value;
+      const sel = document.getElementById('pcItem');
+      const desc = sel.value === '__other__' ? document.getElementById('pcOtherDesc').value : sel.options[sel.selectedIndex]?.text;
+      const amount = parseFloat(document.getElementById('pcAmount').value);
+      if (!date || !desc || desc === '-- Select --' || !amount) { showAlert('Fill all fields', 'error'); return; }
+      try {
+        const result = await apiFetch('/petty-cash', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: desc, amount, entry_date: date })
+        });
+        showAlert(desc + ' added', 'success');
+        sel.value = '';
+        document.getElementById('pcOtherDesc').value = '';
+        document.getElementById('pcOtherDesc').style.display = 'none';
+        document.getElementById('pcAmount').value = '';
+        document.getElementById('pcDate').value = todayStr();
+        loadPettyCashChequeInfo();
+        loadPettyCash();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function loadPettyCash() {
+      try {
+        const sd = document.getElementById('pcReportStart').value || yearStartStr();
+        const ed = document.getElementById('pcReportEnd').value || todayStr();
+        const entries = await apiFetch('/petty-cash?start_date=' + sd + '&end_date=' + ed);
+        const total = entries.reduce((s, e) => s + e.amount, 0);
+        document.getElementById('pcSummary').innerHTML =
+          '<div class="summary-card expense"><div class="label">Total Petty Cash</div><div class="value">' + formatCurrency(total) + '</div></div>';
+        document.getElementById('pcList').innerHTML = entries.length === 0 ? '<p class="empty-state">No entries in this period</p>' :
+          '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Added By</th></tr></thead><tbody>' +
+          entries.map(e => '<tr><td>' + formatDate(e.entry_date) + '</td><td>' + escHtml(e.description) + '</td><td>' + formatCurrency(e.amount) + '</td><td>' + escHtml(e.created_by_name || '—') + '</td></tr>').join('') +
+          '<tr style="font-weight:700;background:var(--bg-alt)"><td colspan="2">Total</td><td>' + formatCurrency(total) + '</td><td></td></tr>' +
+          '</tbody></table></div>';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function resetPettyCashDates() {
+      document.getElementById('pcReportStart').value = yearStartStr();
+      document.getElementById('pcReportEnd').value = todayStr();
+      loadPettyCash();
+    }
+
+    function printPettyCash() {
+      const content = document.getElementById('pcList').innerHTML;
+      const sd = document.getElementById('pcReportStart').value || yearStartStr();
+      const ed = document.getElementById('pcReportEnd').value || todayStr();
+      const pcsd = sd.split('-').reverse().join('/');
+      const pced = ed.split('-').reverse().join('/');
+      const w = window.open('', '', 'width=800,height=600');
+      w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Petty Cash Report</title><style>' +
+        '*{box-sizing:border-box;margin:0;padding:0}body{font-family:Segoe UI,sans-serif;padding:2rem;color:#333}' +
+        '.header{text-align:center;margin-bottom:2rem;padding-bottom:1rem;border-bottom:3px double #28a745}' +
+        '.header h1{font-size:1.3rem;color:#28a745}.header p{color:#666;font-size:0.9rem}' +
+        'table{width:100%;border-collapse:collapse;margin-bottom:1rem}' +
+        'th,td{padding:0.6rem 1rem;text-align:left;border-bottom:1px solid #eee;font-size:0.9rem}' +
+        'th{background:#f5f5f5;font-weight:600}.total-row{font-weight:700;background:#f9f9f9}' +
+        '.footer{text-align:center;margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;color:#999;font-size:0.8rem}' +
+        '@media print{body{padding:1rem}}' +
+        '</style></head><body>' +
+        '<div class="header"><h1>ACK St. Mark\'s Parish - Malaa</h1><p>Petty Cash Report — ' + pcsd + ' to ' + pced + '</p></div>' +
+        content +
+        '<div class="footer"><p>Generated on ' + new Date().toLocaleDateString('en-GB') + '</p><p>ACK St. Mark\'s Parish - Malaa &copy; ' + new Date().getFullYear() + '</p></div>' +
+        '</body></html>');
+      w.document.close();
+      setTimeout(function() { w.print(); }, 500);
+    }
+
+    // Cheques
+    async function openPettyCashCheque(e) {
+      e.preventDefault();
+      const amount = parseFloat(document.getElementById('newChequeAmount').value);
+      if (!amount || amount <= 0) { showAlert('Enter a valid amount', 'error'); return; }
+      try {
+        await apiFetch('/petty-cash/cheques', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount })
+        });
+        showAlert('New petty cash cheque of ' + formatCurrency(amount) + ' opened', 'success');
+        document.getElementById('newChequeAmount').value = '';
+        loadCheques();
+        loadPettyCashChequeInfo();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function loadCheques() {
+      try {
+        const cheques = await apiFetch('/petty-cash/cheques');
+        document.getElementById('chequesList').innerHTML = cheques.length === 0 ? '<p class="empty-state">No cheques yet</p>' :
+          '<div class="table-wrap"><table><thead><tr><th>#</th><th>Amount</th><th>Balance</th><th>Status</th><th>Opened</th><th>Closed</th><th>Actions</th></tr></thead><tbody>' +
+          cheques.map(c => {
+            const bal = c.balance; // may be stale, recalculate
+            return '<tr>' +
+              '<td>' + c.id + '</td>' +
+              '<td>' + formatCurrency(c.amount) + '</td>' +
+              '<td>' + formatCurrency(c.balance) + '</td>' +
+              '<td>' + (c.status === 'open' ? '<span class="badge-active">Open</span>' : '<span class="badge-inactive">Closed</span>') + '</td>' +
+              '<td>' + formatDate(c.opened_at?.split(' ')[0]) + '</td>' +
+              '<td>' + (c.closed_at ? formatDate(c.closed_at?.split(' ')[0]) : '—') + '</td>' +
+              '<td><div class="actions-cell">' +
+              (c.status === 'open' ? '<button class="btn btn-sm btn-danger" onclick="closeCheque(' + c.id + ')">Close</button>' : '') +
+              '</div></td></tr>';
+          }).join('') +
+          '</tbody></table></div>';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function closeCheque(id) {
+      if (!confirm('Close this cheque?')) return;
+      try {
+        await apiFetch('/petty-cash/cheques/' + id + '/close', { method: 'PATCH' });
+        showAlert('Cheque closed', 'success');
+        loadCheques();
+        loadPettyCashChequeInfo();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function clearAllFinanceData() {
+      if (!confirm('Delete ALL finance data? This includes all collections, income, expenses, contributions, petty cash, and development entries. This CANNOT be undone.')) return;
+      if (!confirm('Are you absolutely sure? This will permanently delete all financial records.')) return;
+      try {
+        await apiFetch('/clear-all', { method: 'POST' });
+        showAlert('All finance data has been cleared. You can now start fresh.', 'success');
+        loadCollectionCategories();
+        loadExpenditureItems();
+        loadEntries('collection', 'colList', 'colSummary');
+        loadIncomeSummary();
+        loadEntries('expense', 'expList', '');
+        loadPettyCashItems();
+        loadPettyCashChequeInfo();
+        loadPettyCash();
+        loadCheques();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    // Init
+    const td = todayStr();
+    const ys = yearStartStr();
+    document.getElementById('colDate').value = td;
+    document.getElementById('incReportStart').value = ys;
+    document.getElementById('incReportEnd').value = td;
+    document.getElementById('otherExpDate').value = td;
+    document.getElementById('expSummaryStart').value = ys;
+    document.getElementById('expSummaryEnd').value = td;
+    document.getElementById('repStart').value = ys;
+    document.getElementById('repEnd').value = td;
+    document.getElementById('pcDate').value = td;
+    document.getElementById('pcReportStart').value = ys;
+    document.getElementById('pcReportEnd').value = td;
+    loadCollectionCategories();
+    loadExpenditureItems();
+    loadEntries('collection', 'colList', 'colSummary');
+    loadIncomeSummary();
+    loadEntries('expense', 'expList', '');
+    loadPettyCashItems();
+    loadPettyCashChequeInfo();
+    loadPettyCash();
+    loadCheques();
+    if (finUser && (finUser.can_manage_users || finUser.role === 'finance_superadmin' || finUser.role === 'finance_admin')) {
+      loadFinanceUsers();
+      const cdc = document.getElementById('clearDataCard');
+      if (cdc) cdc.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register — ACK St. Mark's Parish - Malaa</title>
+  <link rel="stylesheet" href="portal.css">
+  <style>
+    .cart-box {
+      background: var(--bg-alt);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+    .cart-box h3 {
+      font-size: 1rem;
+      color: var(--primary);
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .cart-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      padding: 0.3rem 0;
+      color: var(--text);
+    }
+    .cart-row.total {
+      border-top: 2px solid var(--accent);
+      margin-top: 0.4rem;
+      padding-top: 0.6rem;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--primary);
+    }
+    .mpesa-info {
+      background: #f0f8f0;
+      border: 1px solid #28a745;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+    .mpesa-info strong { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <p style="text-align:center;margin-bottom:0.5rem"><a href="/" style="color:var(--accent);font-size:0.85rem">&larr; Back to Home</a></p>
+      <h1>Member Registration</h1>
+      <p class="auth-subtitle">Join ACK St. Mark's Parish - Malaa</p>
+      <div id="alert"></div>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="full_name">Full Name *</label>
+          <input type="text" id="full_name" required placeholder="Enter your full name">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gender">Gender *</label>
+            <select id="gender" required>
+              <option value="">Select...</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone Number *</label>
+            <input type="tel" id="phone" required placeholder="e.g. 0712 345 678">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="marital_status">Marital Status</label>
+          <select id="marital_status">
+            <option value="">Select...</option>
+            <option value="Single">Single</option>
+            <option value="Married">Married</option>
+            <option value="Divorced">Divorced</option>
+            <option value="Widowed">Widowed</option>
+          </select>
+        </div>
+        <div id="spouseFields" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="spouse_name">Spouse Name</label>
+              <input type="text" id="spouse_name" placeholder="Spouse's full name">
+            </div>
+            <div class="form-group">
+              <label for="spouse_phone">Spouse Contact</label>
+              <input type="tel" id="spouse_phone" placeholder="Spouse's phone">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Children (name & age/category)</label>
+          <div id="childrenContainer">
+            <div class="form-row" style="margin-bottom:0.5rem">
+              <input type="text" class="child-name" placeholder="Child's name" style="width:100%;padding:0.6rem 1rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem">
+              <input type="text" class="child-age" placeholder="Age / category" style="width:100%;padding:0.6rem 1rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem">
+            </div>
+          </div>
+          <button type="button" onclick="addChildField()" style="background:none;border:2px dashed var(--bg-alt);border-radius:8px;padding:0.5rem;width:100%;cursor:pointer;color:var(--text-light);font-size:0.85rem">+ Add Child</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fellowship">Fellowship / Small Group</label>
+            <select id="fellowship">
+              <option value="">Select...</option>
+              <option value="Nazareth">Nazareth</option>
+              <option value="Jerusalem">Jerusalem</option>
+              <option value="Judea">Judea</option>
+              <option value="Vicar's Care">Vicar's Care</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="department">Department</label>
+            <select id="department">
+              <option value="">Select...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Cart Summary -->
+        <div class="cart-box" id="cartBox">
+          <h3>&#128722; Registration Fees Summary</h3>
+          <div id="cartItems">
+            <div class="cart-row"><span>Member (adult)</span><span>KES 200</span></div>
+          </div>
+          <div class="cart-row total">
+            <span>Total</span>
+            <span id="cartTotal">KES 200</span>
+          </div>
+        </div>
+
+        <!-- Payment Method -->
+        <div class="form-group">
+          <label>Payment Method *</label>
+          <div style="display:flex;gap:1rem;margin-top:0.3rem">
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;padding:0.6rem 1.2rem;border:2px solid var(--bg-alt);border-radius:8px;transition:0.2s" id="pmCashLabel">
+              <input type="radio" name="payment_method" value="Cash" checked onchange="togglePaymentMethod()"> Cash
+            </label>
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;padding:0.6rem 1.2rem;border:2px solid var(--bg-alt);border-radius:8px;transition:0.2s" id="pmMpesaLabel">
+              <input type="radio" name="payment_method" value="MPesa" onchange="togglePaymentMethod()"> MPesa
+            </label>
+          </div>
+        </div>
+
+        <!-- MPesa Payment -->
+        <div id="mpesaSection">
+          <div class="mpesa-info">
+            <strong>&#128179; MPesa Payment</strong><br>
+            Pay the total amount above to MPesa <strong>Paybill: 247247</strong> Account: <strong>STMARKS-REG</strong><br>
+            Then enter the confirmation code below.
+          </div>
+          <div class="form-group">
+            <label for="mpesa_code">MPesa Confirmation Code *</label>
+            <input type="text" id="mpesa_code" placeholder="e.g. QLK1ABCDEF">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Create Password *</label>
+          <input type="password" id="password" required placeholder="At least 6 characters" minlength="6">
+          <p style="font-size:0.8rem;color:var(--text-light);margin-top:0.3rem">Your username will be your full name (e.g. John Doe → john.doe)</p>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%">Complete Registration (KES <span id="submitTotal">200</span>)</button>
+      </form>
+      <div class="auth-footer">
+        Already registered? <a href="login">Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PRICES = { adult: 200, spouse: 200, child_below_18: 50, child_18_above: 100 };
+
+    function calcCart() {
+      let items = [];
+      let total = 0;
+
+      // Adult member
+      items.push({ label: 'Member (adult)', amount: PRICES.adult });
+      total += PRICES.adult;
+
+      // Spouse
+      const marital = document.getElementById('marital_status').value;
+      if (marital === 'Married') {
+        items.push({ label: 'Spouse', amount: PRICES.spouse });
+        total += PRICES.spouse;
+      }
+
+      // Children
+      const ageInputs = document.querySelectorAll('.child-age');
+      ageInputs.forEach(inp => {
+        const val = inp.value.trim();
+        if (!val) return;
+        const age = parseInt(val);
+        if (isNaN(age)) return;
+        if (age < 18) {
+          items.push({ label: `Child (${val} yrs)`, amount: PRICES.child_below_18 });
+          total += PRICES.child_below_18;
+        } else {
+          items.push({ label: `Child (${val} yrs)`, amount: PRICES.child_18_above });
+          total += PRICES.child_18_above;
+        }
+      });
+
+      // Render
+      let html = '';
+      items.forEach(it => {
+        html += `<div class="cart-row"><span>${it.label}</span><span>KES ${it.amount}</span></div>`;
+      });
+      document.getElementById('cartItems').innerHTML = html;
+      document.getElementById('cartTotal').textContent = 'KES ' + total;
+      document.getElementById('submitTotal').textContent = total;
+      return total;
+    }
+
+    let childCount = 1;
+
+    function addChildField() {
+      const container = document.getElementById('childrenContainer');
+      const div = document.createElement('div');
+      div.className = 'form-row';
+      div.style.marginBottom = '0.5rem';
+      div.innerHTML = `
+        <input type="text" class="child-name" placeholder="Child's name" style="width:100%;padding:0.6rem 1rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem">
+        <input type="text" class="child-age" placeholder="Age / category" oninput="calcCart()" style="width:100%;padding:0.6rem 1rem;border:2px solid var(--bg-alt);border-radius:8px;font-size:0.9rem">
+      `;
+      container.appendChild(div);
+      childCount++;
+      calcCart();
+    }
+
+    document.getElementById('marital_status').addEventListener('change', function() {
+      document.getElementById('spouseFields').style.display = this.value === 'Married' ? 'block' : 'none';
+      calcCart();
+    });
+
+    // Recalculate on age input changes (delegated)
+    document.getElementById('childrenContainer').addEventListener('input', function(e) {
+      if (e.target.classList.contains('child-age')) calcCart();
+    });
+
+    // Load departments
+    fetch('/api/departments')
+      .then(r => r.json())
+      .then(data => {
+        const sel = document.getElementById('department');
+        data.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.name;
+          opt.textContent = d.name;
+          sel.appendChild(opt);
+        });
+      });
+
+    function togglePaymentMethod() {
+      const method = document.querySelector('input[name="payment_method"]:checked').value;
+      const section = document.getElementById('mpesaSection');
+      const codeInput = document.getElementById('mpesa_code');
+      if (method === 'Cash') {
+        section.style.display = 'none';
+        codeInput.required = false;
+      } else {
+        section.style.display = 'block';
+        codeInput.required = true;
+      }
+    }
+    togglePaymentMethod();
+
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const alert = document.getElementById('alert');
+      alert.innerHTML = '';
+
+      const childInputs = document.querySelectorAll('.child-name');
+      const ageInputs = document.querySelectorAll('.child-age');
+      const children = [];
+      for (let i = 0; i < childInputs.length; i++) {
+        if (childInputs[i].value.trim()) {
+          children.push({
+            name: childInputs[i].value.trim(),
+            age: ageInputs[i].value.trim()
+          });
+        }
+      }
+
+      const total = calcCart();
+
+      const body = {
+        full_name: document.getElementById('full_name').value.trim(),
+        gender: document.getElementById('gender').value,
+        phone: document.getElementById('phone').value.trim(),
+        password: document.getElementById('password').value,
+        marital_status: document.getElementById('marital_status').value,
+        spouse_name: document.getElementById('spouse_name').value.trim(),
+        spouse_phone: document.getElementById('spouse_phone').value.trim(),
+        children_info: children,
+        fellowship: document.getElementById('fellowship').value,
+        department: document.getElementById('department').value,
+        registration_fee: total,
+        payment_method: document.querySelector('input[name="payment_method"]:checked').value,
+        mpesa_code: document.getElementById('mpesa_code').value.trim(),
+      };
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+          return;
+        }
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('member_id', data.member_id);
+        window.location.href = '/portal/dashboard';
+      } catch (err) {
+        alert.innerHTML = `<div class="alert alert-error">Registration failed. Please try again.</div>`;
+      }
+    });
+
+    // Initial cart calc
+    calcCart();
+  </script>
+</body>
+</html>
