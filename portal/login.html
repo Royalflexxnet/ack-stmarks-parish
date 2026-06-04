@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — ACK St. Mark's Parish - Malaa</title>
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <p style="text-align:center;margin-bottom:0.5rem"><a href="/" style="color:var(--accent);font-size:0.85rem">&larr; Back to Home</a></p>
+      <h1>Member Login</h1>
+      <p class="auth-subtitle">Welcome back to ACK St. Mark's Parish - Malaa</p>
+      <div id="alert"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Full Name, Phone, or Membership No.</label>
+          <input type="text" id="username" required placeholder="e.g. John Doe, 0712345678, or ASMM-1001">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required placeholder="Enter your password">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%">Sign In</button>
+      </form>
+      <div class="auth-footer">
+        Not registered yet? <a href="register">Self Register</a> &nbsp;|&nbsp; <a href="admin-login">Admin Login</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const alert = document.getElementById('alert');
+      alert.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('username').value.trim(),
+            password: document.getElementById('password').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+          return;
+        }
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('member_id', data.member_id);
+        window.location.href = '/portal/dashboard';
+      } catch {
+        alert.innerHTML = `<div class="alert alert-error">Login failed. Please check your credentials.</div>`;
+      }
+    });
+  </script>
+</body>
+</html>
